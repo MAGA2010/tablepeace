@@ -1,0 +1,11 @@
+node_modules/
+.sites/
+.env*
+!.env.example
+research/implementation-contract.txt
+research/shared-discussion.txt
+research/competition-guide.txt
+qa/*.png
+*.tar.gz
+*.tar
+.hackathon/

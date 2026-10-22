@@ -1,11 +1,13 @@
-import { fixture, aggregate, rescue, recombine, formatTime } from "./engine.js";
+import { fixture, aggregate, searchAlternatives, recombine, formatTime } from "./engine.js";
 
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const plans = fixture.options;
-const stats = Object.fromEntries(plans.map(plan => [plan.id, aggregate(plan, fixture.members, fixture.expectedCount)]));
-const closestPlan = [...plans].sort((a,b) => stats[a.id].blockedMemberCount - stats[b.id].blockedMemberCount)[0];
-const recommendation = rescue(plans, fixture.members, fixture.expectedCount, closestPlan)[0];
+let members = structuredClone(fixture.members);
+let stats = Object.fromEntries(plans.map(plan => [plan.id, aggregate(plan, members, fixture.expectedCount)]));
+let closestPlan = [...plans].sort((a,b) => stats[a.id].blockedMemberCount - stats[b.id].blockedMemberCount)[0];
+let alternatives = searchAlternatives(plans, members, fixture.expectedCount, closestPlan);
+let recommendation = alternatives[0];
 let selectedId = closestPlan.id;
 let simulated = null;
 let page = location.hash.slice(1) || (location.pathname === "/new" ? "new" : "results");
@@ -26,7 +28,7 @@ function cell(kind, result) {
   if(kind==="environment"){ count=result.environmentConflictCount; unknown=result.environmentUnknownCount; }
   const el=document.createElement("span");
   el.className="cell-result "+(count?"cell-blocked":unknown?"cell-unknown":"cell-ok");
-  el.textContent=count ? count+" conflict"+(count>1?"s":"") : unknown ? "Needs info" : result.checkedParticipantCount+" of "+fixture.expectedCount+" clear";
+  el.textContent=count ? count+" conflict"+(count>1?"s":"") : unknown ? "Needs info" : result.pendingMemberCount ? result.checkedParticipantCount+" checked · "+result.pendingMemberCount+" pending" : result.checkedParticipantCount+" of "+fixture.expectedCount+" clear";
   return el;
 }
 function updateMatrix() {
@@ -46,8 +48,8 @@ function updateMatrix() {
 }
 function choose(id) {
   selectedId=id;
-  const plan=id==="simulation" ? simulated.option : plans.find(p=>p.id===id);
-  const result=id==="simulation" ? simulated.result : stats[id];
+  const plan=id==="simulation" ? simulated?.option : plans.find(p=>p.id===id);
+  const result=id==="simulation" ? simulated?.result : stats[id];
   if(!plan||!result)return;
   $$("[data-option]").forEach(el=>el.classList.toggle("chosen",el.dataset.option===id));
   $("#selected-title").textContent=plan.venueLabel;
@@ -80,7 +82,8 @@ function choose(id) {
       : "Known requirements fit. Approval and venue checks still remain.";
 }
 function renderRecommendation() {
-  if (!recommendation) { $("#recommendation").hidden=true; return; }
+  $("#recommendation").hidden=!recommendation;
+  if (!recommendation) return;
   const { option, result, changes }=recommendation;
   $("#recommendation-venue").textContent=option.venueLabel;
   $("#recommendation-time").textContent=formatTime(option.startUtc)+"–"+formatTime(option.endUtc)+" · "+money(option.costMinor)+" · "+option.noise+" setting";
@@ -88,7 +91,7 @@ function renderRecommendation() {
   $("#recommendation-before").textContent=stats[closestPlan.id].blockedMemberCount;
   $("#recommendation-after").textContent=result.blockedMemberCount;
   $("#recommendation-delta").textContent=changes+" change"+(changes===1?"":"s")+" from the closest existing plan";
-  $("#recommendation-source").textContent="Based on "+closestPlan.venueLabel+" at "+formatTime(closestPlan.startUtc)+". Fictional requirements only; venue hours and approval are unverified.";
+  $("#recommendation-source").textContent="Based on "+closestPlan.venueLabel+" at "+formatTime(closestPlan.startUtc)+". "+(result.pendingMemberCount ? result.pendingMemberCount+" response"+(result.pendingMemberCount===1?"":"s")+" still pending. " : "")+"Fictional requirements only; venue hours and approval are unverified.";
 }
 function renderPage(next) {
   page=next;
@@ -126,9 +129,9 @@ function showSetup() {
 }
 function runRescue() {
   const venue=plans.find(p=>p.venueLabel===$("#venue-select").value);
-  const time=plans.find(p=>formatTime(p.startUtc)===$("#time-select").value);
+  const time={startUtc:toUtc($("#time-select").value)};
   const option=recombine(closestPlan,venue,time);
-  const result=aggregate(option,fixture.members,fixture.expectedCount);
+  const result=aggregate(option,members,fixture.expectedCount);
   simulated={option,result};
   if(selectedId==="simulation")choose("simulation");
   $("[data-action='use-preview']").disabled=false;
@@ -136,13 +139,13 @@ function runRescue() {
   $("#candidate-venue").textContent=option.venueLabel;
   $("#candidate-facts").textContent=formatTime(option.startUtc)+"–"+formatTime(option.endUtc)+" · "+money(option.costMinor)+" · "+option.noise+" setting";
   $("#outcome-title").textContent=result.blockedMemberCount ? result.blockedMemberCount+" known conflict"+(result.blockedMemberCount===1?"":"s")+" remain" : "No known conflicts in supplied needs";
-  $("#outcome-copy").textContent=result.unknownMemberCount ? result.unknownMemberCount+" response details still need checking." : "All four fictional submitted needs fit this combination.";
+  $("#outcome-copy").textContent=result.unknownMemberCount ? result.unknownMemberCount+" response details still need checking." : result.pendingMemberCount ? result.pendingMemberCount+" fictional responses are pending." : result.blockedMemberCount ? result.compatibleMemberCount+" of "+fixture.expectedCount+" fictional responses fit." : "All "+fixture.expectedCount+" fictional submitted needs fit this combination.";
   $("#outcome-title").className=result.blockedMemberCount?"warn":"good";
   toast(result.blockedMemberCount?"What-if checked — conflicts remain.":"What-if checked — no known conflicts.");
 }
 function resetCandidate() {
   const venue=plans.find(p=>p.venueLabel===$("#venue-select").value);
-  const time=plans.find(p=>formatTime(p.startUtc)===$("#time-select").value);
+  const time={startUtc:toUtc($("#time-select").value)};
   const option=recombine(closestPlan,venue,time);
   $("#candidate-title").textContent=option.title;
   $("#candidate-venue").textContent=option.venueLabel;
@@ -151,6 +154,76 @@ function resetCandidate() {
   $("#outcome-title").className="";
   $("#outcome-copy").textContent="Run the check to see how fictional group needs fit.";
   $("[data-action='use-preview']").disabled=true;
+}
+function toUtc(hour) { return new Date(fixture.date+"T"+hour+":00+08:00").toISOString(); }
+function ensureTimeChoice(hour) {
+  const select=$("#time-select");
+  if(!$$('option',select).some(option=>option.value===hour))select.add(new Option(hour,hour));
+  select.value=hour;
+}
+function renderLabMembers() {
+  const holder=$("#lab-members");holder.replaceChildren();
+  members.forEach((member,index)=>{
+    const row=document.createElement("div");row.className="lab-member";row.dataset.member=index;
+    const interval=member.availability[0];
+    row.innerHTML='<div class="lab-member-title"><b>Participant '+(index+1)+'</b><span>Fictional</span></div><div class="lab-member-fields"><label>Available from<input type="time" data-field="from"></label><label>Until<input type="time" data-field="until"></label><label>Max budget (¥)<input type="number" min="0" step="1" data-field="budget"></label><label>Quiet space<select data-field="quiet"><option value="false">No</option><option value="true">Yes</option><option value="unknown">Unknown</option></select></label></div><label class="lab-submitted"><input type="checkbox" data-field="submitted"> Response submitted</label><small class="lab-error" role="alert"></small>';
+    $("[data-field='from']",row).value=interval?formatTime(interval.startUtc):"";
+    $("[data-field='until']",row).value=interval?formatTime(interval.endUtc):"";
+    $("[data-field='budget']",row).value=member.maxBudgetMinor==null?"":String(member.maxBudgetMinor/100);
+    $("[data-field='quiet']",row).value=member.needsQuiet===null?"unknown":String(member.needsQuiet);
+    $("[data-field='submitted']",row).checked=member.submitted;
+    holder.append(row);
+  });
+}
+function renderLabResults() {
+  const best=stats[closestPlan.id];
+  $("#lab-best-score").textContent=best.compatibleMemberCount+"/"+fixture.expectedCount;
+  $("#lab-best-label").textContent=closestPlan.venueLabel+" · "+formatTime(closestPlan.startUtc);
+  $("#lab-best-detail").textContent=best.blockedMemberCount+" known conflict"+(best.blockedMemberCount===1?"":"s")+" · "+best.pendingMemberCount+" pending response"+(best.pendingMemberCount===1?"":"s");
+  const originals=$("#lab-plan-list");originals.replaceChildren();
+  plans.forEach(plan=>{
+    const result=stats[plan.id],button=document.createElement("button");
+    button.dataset.option=plan.id;
+    button.innerHTML='<span></span><strong></strong><small></small>';
+    $("span",button).textContent=plan.venueLabel+" · "+formatTime(plan.startUtc);
+    $("strong",button).textContent=result.compatibleMemberCount+"/"+fixture.expectedCount+" fit";
+    $("small",button).textContent=result.blockedMemberCount+" conflict"+(result.blockedMemberCount===1?"":"s");
+    originals.append(button);
+  });
+  const suggestions=$("#lab-alternatives");suggestions.replaceChildren();
+  alternatives.forEach(({option,result},index)=>{
+    const button=document.createElement("button");button.dataset.labAlternative=index;
+    button.innerHTML='<span></span><strong></strong><small></small>';
+    $("span",button).textContent=option.venueLabel+" · "+formatTime(option.startUtc);
+    $("strong",button).textContent=result.compatibleMemberCount+"/"+fixture.expectedCount+" fit";
+    $("small",button).textContent=result.blockedMemberCount+" conflict"+(result.blockedMemberCount===1?"":"s")+" · "+money(option.costMinor);
+    suggestions.append(button);
+  });
+  if(!alternatives.length)suggestions.textContent="No new combination within this time window.";
+}
+function updateLab() {
+  const next=structuredClone(members);
+  let valid=true;
+  $$(".lab-member").forEach(row=>{
+    const index=Number(row.dataset.member),member=next[index];
+    const from=$("[data-field='from']",row).value,until=$("[data-field='until']",row).value;
+    const budget=$("[data-field='budget']",row).value,quiet=$("[data-field='quiet']",row).value;
+    const error=$(".lab-error",row);error.textContent="";
+    if((from&&!until)||(!from&&until)||from&&until&&from>=until){error.textContent="Enter a valid availability interval, or leave both times empty.";valid=false;return;}
+    if(budget!==""&&(!Number.isSafeInteger(Number(budget)*100)||Number(budget)<0)){error.textContent="Enter a valid non-negative budget.";valid=false;return;}
+    member.availability=from?[{startUtc:toUtc(from),endUtc:toUtc(until)}]:[];
+    member.maxBudgetMinor=budget===""?null:Math.round(Number(budget)*100);
+    member.needsQuiet=quiet==="unknown"?null:quiet==="true";
+    member.submitted=$("[data-field='submitted']",row).checked;
+  });
+  if(!valid)return;
+  members=next;
+  stats=Object.fromEntries(plans.map(plan=>[plan.id,aggregate(plan,members,fixture.expectedCount)]));
+  closestPlan=[...plans].sort((a,b)=>stats[a.id].blockedMemberCount-stats[b.id].blockedMemberCount||stats[a.id].unknownMemberCount-stats[b.id].unknownMemberCount)[0];
+  alternatives=searchAlternatives(plans,members,fixture.expectedCount,closestPlan);
+  recommendation=alternatives[0];
+  if(simulated)simulated.result=aggregate(simulated.option,members,fixture.expectedCount);
+  renderRecommendation();renderLabResults();updateMatrix();resetCandidate();
 }
 function addOption() {
   const wrap=$("#option-inputs"), number=wrap.children.length+1;
@@ -165,11 +238,14 @@ document.addEventListener("click",event=>{
   const pageButton=event.target.closest("[data-page]");
   if(pageButton){setPage(pageButton.dataset.page);return;}
   const option=event.target.closest("[data-option]");
-  if(option){choose(option.dataset.option);return;}
+  if(option){choose(option.dataset.option);if(page==="lab")setPage("results");return;}
   const action=event.target.closest("[data-action]")?.dataset.action;
+  const labAlternative=event.target.closest("[data-lab-alternative]");
+  if(labAlternative){simulated=alternatives[Number(labAlternative.dataset.labAlternative)];choose("simulation");setPage("results");return;}
   if(action==="setup"||action==="ai"){showSetup();return;}
   if(action==="rescue"){runRescue();return;}
-  if(action==="open-recommendation"){$("#venue-select").value=recommendation.option.venueLabel;$("#time-select").value=formatTime(recommendation.option.startUtc);runRescue();setPage("explore");return;}
+  if(action==="open-recommendation"){$("#venue-select").value=recommendation.option.venueLabel;ensureTimeChoice(formatTime(recommendation.option.startUtc));runRescue();setPage("explore");return;}
+  if(action==="reset-lab"){members=structuredClone(fixture.members);renderLabMembers();updateLab();toast("Example requirements restored.");return;}
   if(action==="use-preview"){if(!simulated){toast("Check a combination first.");return;}choose("simulation");setPage("results");return;}
   if(action==="cards"||action==="matrix"){const cards=action==="cards";$("#matrix").hidden=cards;$("#cards").hidden=!cards;$$(".view-toggle button").forEach(b=>b.classList.toggle("selected",b.dataset.action===action));return;}
   if(action==="add-option"){addOption();return;}
@@ -177,7 +253,7 @@ document.addEventListener("click",event=>{
   if(action==="copy-summary"){
     const plan=selectedId==="simulation"&&simulated?simulated.option:plans.find(p=>p.id===selectedId);
     const result=selectedId==="simulation"&&simulated?simulated.result:stats[selectedId];
-    const summary="TablePeace illustrative demo: "+plan.venueLabel+" at "+formatTime(plan.startUtc)+". "+result.blockedMemberCount+" known conflicts; 0 of 4 confirmations. Venue unverified.";
+    const summary="TablePeace illustrative demo: "+plan.venueLabel+" at "+formatTime(plan.startUtc)+". "+result.blockedMemberCount+" known conflicts; 0 of "+fixture.expectedCount+" confirmations. Venue unverified.";
     if(navigator.clipboard)navigator.clipboard.writeText(summary).then(()=>toast("Illustrative summary copied.")).catch(()=>toast(summary));else toast(summary);
   }
 });
@@ -196,5 +272,6 @@ $("#create-form").addEventListener("submit",event=>{
 document.addEventListener("keydown",event=>{if(event.key==="Escape")closeModal();});
 $("#venue-select").addEventListener("change",resetCandidate);
 $("#time-select").addEventListener("change",resetCandidate);
+$("#lab-members").addEventListener("change",updateLab);
 window.addEventListener("popstate",()=>renderPage(location.hash.slice(1)||(location.pathname==="/new"?"new":"results")));
-renderRecommendation();resetCandidate();updateMatrix();setPage(["overview","needs","results","explore","decision","new"].includes(page)?page:"results");
+renderLabMembers();renderLabResults();renderRecommendation();resetCandidate();updateMatrix();setPage(["overview","needs","results","explore","decision","lab","new"].includes(page)?page:"results");

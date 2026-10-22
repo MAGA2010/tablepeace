@@ -345,3 +345,41 @@ tbody th small{font-size:9px}
   .new-chat-button>span{font-size:21px}
   .setup-link:before{content:none}
 }
+
+/* Decision lab: local, inspectable what-if controls. */
+.lab-notice{display:flex;gap:14px;align-items:center;background:#e8eee4;border:1px solid #d7e4d5;border-radius:12px;padding:14px 17px;margin:0 0 18px;color:#4c6953;font-size:11px}
+.lab-notice b{color:#27573d;white-space:nowrap;font-size:12px}
+.lab-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(290px,.8fr);gap:17px;align-items:start}
+.lab-input-panel,.lab-results,.lab-score{padding:24px}
+.lab-panel-heading{display:flex;justify-content:space-between;gap:15px;align-items:start;margin-bottom:22px}
+.lab-panel-heading h2,.lab-results h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:25px;line-height:1.1;color:#264431;margin:7px 0 0}
+.lab-panel-heading>span{font-size:10px;color:#7b897b;text-align:right}
+.lab-members{display:grid;gap:13px}
+.lab-member{background:#f8f9f5;border:1px solid #e4e9e0;border-radius:12px;padding:16px}
+.lab-member-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.lab-member-title b{font-size:13px;color:#2b4a34}
+.lab-member-title span{font-size:9px;color:#6f856f;border:1px solid #d8e4d8;border-radius:20px;padding:4px 7px}
+.lab-member-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.lab-member-fields label{display:grid;gap:5px;color:#5f705e;font-size:10px;font-weight:650}
+.lab-member-fields input,.lab-member-fields select{min-width:0;width:100%;height:39px;padding:0 8px;border:1px solid #dbe3d7;border-radius:8px;background:white;color:#294334;font-size:11px}
+.lab-submitted{display:flex;gap:8px;align-items:center;margin-top:13px;color:#607360;font-size:10px}
+.lab-submitted input{accent-color:#275c43}
+.lab-error{display:block;color:#a3483c;font-size:10px;min-height:0;margin-top:4px}
+.lab-output-panel{display:grid;gap:14px}
+.lab-score{display:grid;gap:4px;background:#214d3d;color:#f4f7e8;border-color:#315b48}
+.lab-score .eyebrow{color:#b8d6bd;font-size:9px;letter-spacing:1.6px}
+.lab-score strong{font-family:Georgia,"Times New Roman",serif;font-size:57px;font-weight:400;line-height:1.1;margin-top:8px}
+.lab-score span{font-size:13px;color:#e3eddb}
+.lab-score p{font-size:10px;color:#b6cdb9;margin:6px 0 0}
+.lab-results h2{font-size:23px;margin:0 0 14px}
+.lab-results>p{color:#7c897d;font-size:10px;line-height:1.5;margin:-4px 0 12px}
+#lab-plan-list,#lab-alternatives{display:grid;gap:8px}
+#lab-plan-list button,#lab-alternatives button{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 8px;text-align:left;background:#f8faf6;border:1px solid #e2e9df;border-radius:9px;padding:10px 11px}
+#lab-plan-list button:hover,#lab-alternatives button:hover{background:#edf5eb;border-color:#c6ddc6}
+#lab-plan-list span,#lab-alternatives span{font-size:11px;font-weight:650;color:#2d4c36}
+#lab-plan-list strong,#lab-alternatives strong{grid-row:1/3;grid-column:2;font-size:14px;color:#285b42}
+#lab-plan-list small,#lab-alternatives small{font-size:9px;color:#819081}
+#lab-alternatives:empty:after{content:"No new combination within this time window.";font-size:11px;color:#819081}
+@media(max-width:1050px){.lab-layout{grid-template-columns:1fr}.lab-output-panel{grid-template-columns:repeat(2,1fr)}.lab-score{grid-row:1/3}}
+@media(max-width:760px){.lab-member-fields{grid-template-columns:repeat(2,1fr)}.lab-output-panel{grid-template-columns:1fr}.lab-score{grid-row:auto}.lab-notice{display:grid;gap:5px}.nav-link{position:relative}}
+@media(max-width:430px){.lab-input-panel,.lab-results,.lab-score{padding:17px}.lab-panel-heading{display:block}.lab-panel-heading>span{display:block;text-align:left;margin-top:7px}.lab-member{padding:12px}}

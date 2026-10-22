@@ -72,6 +72,51 @@ export function rescue(options, members, expectedCount, base = options[1]) {
   }
   return candidates.sort((a, b) => a.result.blockedMemberCount - b.result.blockedMemberCount || a.result.unknownMemberCount - b.result.unknownMemberCount || a.changes - b.changes || time(a.option.startUtc) - time(b.option.startUtc) || a.option.title.localeCompare(b.option.title)).slice(0, 3);
 }
+export function searchAlternatives(options, members, expectedCount, base = options[1]) {
+  const venues = [...new Map(options.map(option => [[option.venueLabel, option.costMinor, option.noise].join('|'), option])).values()];
+  const existing = new Set(options.map(key));
+  const duration = time(base.endUtc) - time(base.startUtc);
+  const starts = options.map(option => time(option.startUtc));
+  const ends = [
+    ...options.map(option => time(option.endUtc)),
+    ...members.flatMap(member => (member.availability || []).map(interval => time(interval.endUtc)))
+  ].filter(Number.isFinite);
+  const first = Math.ceil(Math.min(...starts) / 1800000) * 1800000;
+  const last = Math.min(Math.max(...ends) - duration, first + 24 * 1800000);
+  const candidates = [];
+  for (let start = first; start <= last; start += 1800000) {
+    for (const venue of venues) {
+      const option = recombine(base, venue, { startUtc: new Date(start).toISOString() });
+      if (existing.has(key(option))) continue;
+      const result = aggregate(option, members, expectedCount);
+      const changes = Number(base.venueLabel !== option.venueLabel || base.costMinor !== option.costMinor || base.noise !== option.noise)
+        + Number(time(base.startUtc) !== start);
+      candidates.push({ option, result, changes });
+    }
+  }
+  const ranked = candidates.sort((a, b) =>
+    a.result.blockedMemberCount - b.result.blockedMemberCount ||
+    a.result.unknownMemberCount - b.result.unknownMemberCount ||
+    b.result.compatibleMemberCount - a.result.compatibleMemberCount ||
+    a.changes - b.changes ||
+    a.option.costMinor - b.option.costMinor ||
+    time(a.option.startUtc) - time(b.option.startUtc) ||
+    a.option.title.localeCompare(b.option.title)
+  );
+  const varied = [], usedVenues = new Set();
+  for (const candidate of ranked) {
+    if (usedVenues.has(candidate.option.venueLabel)) continue;
+    varied.push(candidate);
+    usedVenues.add(candidate.option.venueLabel);
+    if (varied.length === 3) return varied;
+  }
+  for (const candidate of ranked) {
+    if (varied.includes(candidate)) continue;
+    varied.push(candidate);
+    if (varied.length === 3) break;
+  }
+  return varied;
+}
 export function canConfirm({ joinedCount, submittedCount, expectedCount, aggregateResult, roomRevision, proposalRevision, responses }) {
   return joinedCount === expectedCount && submittedCount === expectedCount && aggregateResult.groupStatus === 'compatible' && roomRevision === proposalRevision && responses.length === expectedCount && new Set(responses.map(r => r.participantId)).size === expectedCount && responses.every(r => r.accepted === true && r.proposalRevision === proposalRevision);
 }

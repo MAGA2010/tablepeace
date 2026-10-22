@@ -4,7 +4,7 @@
 
 > TablePeace helps student organizers find workable plans when needs conflict.
 
-A responsive, buildless planning workspace for student project organizers. The demo compares fictional group requirements, shows aggregate conflicts, and lets the viewer test a venue or time alternative.
+A responsive, buildless planning workspace for student project organizers. The demo compares fictional group requirements, shows aggregate conflicts, and includes an interactive decision lab. Change sample availability, budgets, quiet needs, or response status to recalculate every plan and search new venue/time combinations at 30-minute intervals.
 
 ## Run locally
 
@@ -15,7 +15,7 @@ A responsive, buildless planning workspace for student project organizers. The d
 ## Honest demo boundaries
 
 - Every person, plan response, and compatibility result in the example is fictional.
-- The conflict explorer recomputes a deterministic what-if from the bundled sample fixture. It does not check venue hours, reservations, or actual member approvals.
+- The decision lab edits four fictional profiles only in this browser tab. Its search uses known venues and half-hour start times within the example time window. It does not check venue hours, reservations, or actual member approvals.
 - Shared rooms and persistent private responses need a database and server-side access rules. AI requirement suggestions need a server-side provider connection. Both are shown as not configured.
 - This build asks for no credentials and does not persist form input.
 - The comparison semantics were reconstructed from the supplied TablePeace implementation contract. The contract's companion reference fixture archive was not supplied, so its original reference cases cannot be claimed as reproduced.
@@ -26,7 +26,7 @@ Run npm test for deterministic comparison checks, npm run lint for JavaScript sy
 
 ## Five-minute demo path
 
-Use [DEMO.md](DEMO.md): compare the three example plans, show the privacy boundary, test School Library at 18:00, then show that zero confirmations and venue verification are still outstanding.
+Use [DEMO.md](DEMO.md): edit a fictional response in Decision lab, watch the ranking change, preview a better combination, then show that zero confirmations and venue verification are still outstanding.
 
 ## Tech stack and configuration
 

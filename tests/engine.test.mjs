@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fixture as f, evaluateMember, aggregate, rescue, recombine, canConfirm } from '../dist/engine.js';
+import { fixture as f, evaluateMember, aggregate, rescue, searchAlternatives, recombine, canConfirm } from '../dist/engine.js';
 const member = () => structuredClone(f.members[3]);
 test('document golden aggregates are A=3, B=1, C=2 with separate reasons', () => {
   const r = f.options.map(o => aggregate(o, f.members, 4));
@@ -36,6 +36,22 @@ test('rescue excludes existing and duplicate options, is deterministic and prese
   const before=JSON.stringify(f), r=rescue([...f.options,f.options[0]],f.members,4);
   assert.equal(r[0].option.title,'School Library · 18:00'); assert.equal(r[0].result.blockedMemberCount,0);
   assert.ok(r.length<=3); assert.equal(new Set(r.map(x=>x.option.title)).size,r.length); assert.equal(JSON.stringify(f),before);
+});
+test('search finds new half-hour starts and ranks distinct venues without changing input', () => {
+  const before=JSON.stringify(f), ranked=searchAlternatives(f.options,f.members,4,f.options[1]);
+  assert.equal(ranked[0].option.title,'School Library · 18:00');
+  assert.equal(ranked[0].result.compatibleMemberCount,4);
+  assert.equal(ranked[0].result.blockedMemberCount,0);
+  assert.equal(new Set(ranked.map(item=>item.option.venueLabel)).size,3);
+  assert.ok(ranked.some(item=>item.option.startUtc.endsWith('30:00.000Z')));
+  assert.equal(JSON.stringify(f),before);
+});
+test('search responds to changed requirements', () => {
+  const members=structuredClone(f.members);
+  members[0].availability[0].startUtc='2026-10-22T08:00:00Z';
+  const ranked=searchAlternatives(f.options,members,4,f.options[1]);
+  assert.equal(aggregate(f.options[1],members,4).compatibleMemberCount,4);
+  assert.equal(ranked[0].option.title,'School Library · 16:30');
 });
 test('confirmation needs four unique current explicit approvals; revision changes void them', () => {
   const args={joinedCount:4,submittedCount:4,expectedCount:4,aggregateResult:{groupStatus:'compatible'},roomRevision:4,proposalRevision:4,responses:[1,2,3,4].map(i=>({participantId:i,accepted:true,proposalRevision:4}))};

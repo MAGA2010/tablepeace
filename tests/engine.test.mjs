@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture as f, evaluateMember, aggregate, rescue, searchAlternatives, recombine, canConfirm } from '../dist/engine.js';
+import { stressTest } from '../dist/protocol.js';
 const member = () => structuredClone(f.members[3]);
 test('document golden aggregates are A=3, B=1, C=2 with separate reasons', () => {
   const r = f.options.map(o => aggregate(o, f.members, 4));
@@ -52,6 +53,24 @@ test('search responds to changed requirements', () => {
   const ranked=searchAlternatives(f.options,members,4,f.options[1]);
   assert.equal(aggregate(f.options[1],members,4).compatibleMemberCount,4);
   assert.equal(ranked[0].option.title,'School Library · 16:30');
+});
+test('Peace Protocol is deterministic, includes a fallback, and does not mutate requirements', () => {
+  const before=JSON.stringify(f);
+  const first=stressTest(f.options,f.members,4,256,42);
+  const second=stressTest(f.options,f.members,4,256,42);
+  assert.equal(first.winner.option.title,'School Library · 18:30');
+  assert.equal(first.winner.passRate,1);
+  assert.equal(first.backup.option.title,'School Library · 18:00');
+  assert.equal(first.shocks.length,3);
+  assert.deepEqual(first,second);
+  assert.equal(JSON.stringify(f),before);
+});
+test('Peace Protocol changes its survivor when the fictional group changes', () => {
+  const members=structuredClone(f.members);
+  members[0].availability[0].startUtc='2026-10-22T08:00:00Z';
+  const result=stressTest(f.options,members,4,128,42);
+  assert.equal(result.winner.option.title,'School Library · 16:30');
+  assert.equal(result.winner.passRate,1);
 });
 test('confirmation needs four unique current explicit approvals; revision changes void them', () => {
   const args={joinedCount:4,submittedCount:4,expectedCount:4,aggregateResult:{groupStatus:'compatible'},roomRevision:4,proposalRevision:4,responses:[1,2,3,4].map(i=>({participantId:i,accepted:true,proposalRevision:4}))};

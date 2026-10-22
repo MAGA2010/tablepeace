@@ -1,4 +1,5 @@
 import { fixture, aggregate, searchAlternatives, recombine, formatTime } from "./engine.js";
+import { stressTest } from "./protocol.js";
 
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
@@ -10,6 +11,7 @@ let alternatives = searchAlternatives(plans, members, fixture.expectedCount, clo
 let recommendation = alternatives[0];
 let selectedId = closestPlan.id;
 let simulated = null;
+let protocolResult = null;
 let page = location.hash.slice(1) || (location.pathname === "/new" ? "new" : "results");
 let timer;
 const money = cents => cents === 0 ? "Free" : "¥" + (cents / 100).toFixed(cents % 100 ? 2 : 0);
@@ -222,8 +224,49 @@ function updateLab() {
   closestPlan=[...plans].sort((a,b)=>stats[a.id].blockedMemberCount-stats[b.id].blockedMemberCount||stats[a.id].unknownMemberCount-stats[b.id].unknownMemberCount)[0];
   alternatives=searchAlternatives(plans,members,fixture.expectedCount,closestPlan);
   recommendation=alternatives[0];
+  protocolResult=null;
+  $("#protocol-results").hidden=true;
+  $("#protocol-core-label").textContent="READY";
+  $("#protocol-progress").textContent="Requirements changed. Run a new simulation.";
   if(simulated)simulated.result=aggregate(simulated.option,members,fixture.expectedCount);
   renderRecommendation();renderLabResults();updateMatrix();resetCandidate();
+}
+function runProtocol() {
+  const button=$("[data-action='run-protocol']");
+  button.disabled=true;
+  $(".protocol-shell").classList.add("scanning");
+  $("#protocol-core-label").textContent="SCANNING";
+  $("#protocol-progress").textContent="Evaluating alternate timelines and stress vectors…";
+  $("#protocol-results").hidden=true;
+  setTimeout(()=>{
+    try {
+      protocolResult=stressTest(plans,members,fixture.expectedCount);
+      const {winner,backup,shocks,runs,candidates}=protocolResult;
+      $("#protocol-candidate-count").textContent=String(candidates).padStart(2,"0");
+      $("#protocol-winner").textContent=winner.option.venueLabel+" · "+winner.time;
+      $("#protocol-winner-facts").textContent=money(winner.option.costMinor)+" · "+winner.option.noise+" setting · "+protocolResult.baseline.compatibleMemberCount+"/"+fixture.expectedCount+" fictional needs fit today";
+      $("#protocol-rate").textContent=Math.round(winner.passRate*100)+"%";
+      $("#protocol-backup").textContent=backup?backup.option.venueLabel+" · "+backup.time:"No alternate path";
+      $("#protocol-backup-detail").textContent=backup?Math.round(backup.passRate*100)+"% of modeled futures pass. This is a weaker reserve plan, not an approved venue.":"No second path was found in the modeled time window.";
+      const shockList=$("#protocol-shocks");shockList.replaceChildren();
+      shocks.forEach(shock=>{
+        const row=document.createElement("div");row.className="protocol-shock";
+        const name=document.createElement("span"),status=document.createElement("b");
+        name.textContent=shock.name;status.textContent=shock.passed?"PASS":"FRAGILE";
+        status.className=shock.passed?"pass":"fragile";
+        row.append(name,status);shockList.append(row);
+      });
+      $("#protocol-core-label").textContent="RESOLVED";
+      $("#protocol-progress").textContent=runs.toLocaleString()+" futures × "+candidates+" paths analyzed locally.";
+      $("#protocol-results").hidden=false;
+    } catch(error) {
+      $("#protocol-core-label").textContent="ERROR";
+      $("#protocol-progress").textContent="Simulation could not finish: "+error.message;
+    } finally {
+      button.disabled=false;
+      $(".protocol-shell").classList.remove("scanning");
+    }
+  },450);
 }
 function addOption() {
   const wrap=$("#option-inputs"), number=wrap.children.length+1;
@@ -243,6 +286,12 @@ document.addEventListener("click",event=>{
   const labAlternative=event.target.closest("[data-lab-alternative]");
   if(labAlternative){simulated=alternatives[Number(labAlternative.dataset.labAlternative)];choose("simulation");setPage("results");return;}
   if(action==="setup"||action==="ai"){showSetup();return;}
+  if(action==="run-protocol"){runProtocol();return;}
+  if(action==="use-protocol"){
+    if(!protocolResult)return;
+    simulated={option:protocolResult.winner.option,result:aggregate(protocolResult.winner.option,members,fixture.expectedCount)};
+    choose("simulation");setPage("results");return;
+  }
   if(action==="rescue"){runRescue();return;}
   if(action==="open-recommendation"){$("#venue-select").value=recommendation.option.venueLabel;ensureTimeChoice(formatTime(recommendation.option.startUtc));runRescue();setPage("explore");return;}
   if(action==="reset-lab"){members=structuredClone(fixture.members);renderLabMembers();updateLab();toast("Example requirements restored.");return;}
@@ -274,4 +323,4 @@ $("#venue-select").addEventListener("change",resetCandidate);
 $("#time-select").addEventListener("change",resetCandidate);
 $("#lab-members").addEventListener("change",updateLab);
 window.addEventListener("popstate",()=>renderPage(location.hash.slice(1)||(location.pathname==="/new"?"new":"results")));
-renderLabMembers();renderLabResults();renderRecommendation();resetCandidate();updateMatrix();setPage(["overview","needs","results","explore","decision","lab","new"].includes(page)?page:"results");
+renderLabMembers();renderLabResults();renderRecommendation();resetCandidate();updateMatrix();setPage(["overview","needs","results","explore","decision","lab","protocol","new"].includes(page)?page:"results");

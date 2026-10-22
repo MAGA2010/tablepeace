@@ -383,3 +383,67 @@ tbody th small{font-size:9px}
 @media(max-width:1050px){.lab-layout{grid-template-columns:1fr}.lab-output-panel{grid-template-columns:repeat(2,1fr)}.lab-score{grid-row:1/3}}
 @media(max-width:760px){.lab-member-fields{grid-template-columns:repeat(2,1fr)}.lab-output-panel{grid-template-columns:1fr}.lab-score{grid-row:auto}.lab-notice{display:grid;gap:5px}.nav-link{position:relative}}
 @media(max-width:430px){.lab-input-panel,.lab-results,.lab-score{padding:17px}.lab-panel-heading{display:block}.lab-panel-heading>span{display:block;text-align:left;margin-top:7px}.lab-member{padding:12px}}
+
+/* Peace Protocol: a real deterministic stress test with cinematic presentation. */
+.recommendation-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.protocol-entry{min-height:42px;border:1px solid #acc7ae6e;border-radius:9px;padding:0 14px;background:#ffffff12;color:#e9f3df;font-size:11px;font-weight:700}
+.protocol-entry:hover{background:#ffffff26}
+.protocol-heading{margin-bottom:26px}
+.protocol-heading h1{font-size:clamp(52px,7vw,90px);letter-spacing:-4px}
+.protocol-heading p{max-width:700px}
+.protocol-beta{border:1px solid #a8c1a9;color:#517758;border-radius:100px;padding:8px 12px;font-size:9px;font-weight:750;letter-spacing:1px;white-space:nowrap}
+.protocol-shell{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);min-height:470px;overflow:hidden;background:#132a24;border:1px solid #355c4d;border-radius:21px;box-shadow:0 22px 60px #17432c2a;color:#f5f4e8}
+.protocol-visual{position:relative;isolation:isolate;min-height:470px;overflow:hidden;background:radial-gradient(circle at 50% 48%,#2c705444 0 10%,transparent 48%),linear-gradient(155deg,#193b2f,#0c211d)}
+.protocol-visual:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#a3cdb20d 1px,transparent 1px),linear-gradient(90deg,#a3cdb20d 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(90deg,transparent,#000 20% 80%,transparent)}
+.protocol-orbit{position:absolute;border:1px solid #bfe6c232;border-radius:50%;left:50%;top:48%;transform:translate(-50%,-50%)}
+.orbit-one{width:190px;height:190px;box-shadow:0 0 35px #62bd7e18}
+.orbit-two{width:315px;height:315px;border-style:dashed;border-color:#bfe6c226}
+.orbit-three{width:440px;height:440px;border-color:#bfe6c218}
+.protocol-core{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);width:150px;height:150px;display:grid;place-content:center;justify-items:center;gap:3px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#8cc28d,#2f7252 55%,#174634);box-shadow:0 0 0 11px #96c69913,0 0 55px #84e09a4d;color:#f4f8e7}
+.protocol-core>span{font-size:58px;line-height:1}
+.protocol-core>b{font-size:8px;letter-spacing:2px}
+.protocol-node{position:absolute;color:#c5dfc5;background:#214b3980;border:1px solid #7fae8659;border-radius:100px;padding:7px 10px;font-size:8px;font-weight:750;letter-spacing:1.4px}
+.node-one{left:17%;top:25%}.node-two{right:11%;top:20%}.node-three{left:14%;bottom:22%}.node-four{right:10%;bottom:21%}
+.protocol-coordinates{position:absolute;left:25px;bottom:23px;color:#93b69b;font-family:ui-monospace,monospace;font-size:9px;line-height:1.7;letter-spacing:1px}
+.protocol-console{display:flex;flex-direction:column;padding:37px 37px 28px;border-left:1px solid #4d796142;background:linear-gradient(150deg,#18392e,#142b25)}
+.protocol-console-top{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#b8d6b6;font-size:9px;font-weight:750;letter-spacing:1.5px}
+.protocol-live-dot{color:#93c999;font-size:8px;white-space:nowrap}
+.protocol-console h2{font-family:Georgia,"Times New Roman",serif;font-size:clamp(31px,3.1vw,44px);font-weight:400;line-height:1.13;letter-spacing:-1px;color:#fffbed;margin:53px 0 13px;max-width:450px}
+.protocol-console>p{font-size:12px;line-height:1.65;color:#b9d0bd;max-width:450px;margin:0}
+.protocol-specs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:auto 0 22px;padding-top:32px}
+.protocol-specs>div{display:grid;gap:3px;border-top:1px solid #9cc69d49;padding-top:13px}
+.protocol-specs strong{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:29px;color:#e6f1da}
+.protocol-specs small{font-size:8px;letter-spacing:1px;color:#9db69f}
+.protocol-run{width:100%;display:flex;justify-content:space-between;align-items:center;background:#d8edc6;color:#214934;border:0;border-radius:10px;padding:13px 15px;font-size:12px;font-weight:750}
+.protocol-run:hover{background:#ebf8dc}
+.protocol-run>span{font-size:17px}
+.protocol-progress{font-family:ui-monospace,monospace;font-size:10px;color:#a6c6aa;margin-top:11px;min-height:15px}
+.protocol-shell.scanning .orbit-two{animation:orbit-spin 3s linear infinite}
+.protocol-shell.scanning .protocol-core{animation:protocol-pulse 1s ease-in-out infinite alternate}
+@keyframes orbit-spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes protocol-pulse{to{box-shadow:0 0 0 23px #96c69922,0 0 90px #84e09a9e}}
+.protocol-results{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.75fr);gap:15px;margin-top:17px}
+.protocol-result-primary{background:#e5eadc;border:1px solid #d7e2d1;border-radius:17px;padding:27px 30px;position:relative;overflow:hidden}
+.protocol-result-primary:after{content:"✺";position:absolute;right:-20px;top:-65px;font-size:220px;color:#c5ddc14d;line-height:1;pointer-events:none}
+.protocol-result-primary .eyebrow,.protocol-result-card .eyebrow{font-size:9px;letter-spacing:1.6px;color:#5a795d}
+.protocol-result-primary h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(32px,3.5vw,48px);line-height:1.1;color:#264634;margin:19px 0 7px;position:relative}
+.protocol-result-primary p{color:#5f785f;font-size:11px;margin:0;position:relative}
+.protocol-rate{display:flex;gap:14px;align-items:center;border-top:1px solid #cbd9c8;margin:22px 0 20px;padding-top:15px;position:relative}
+.protocol-rate strong{font-family:Georgia,"Times New Roman",serif;font-size:48px;font-weight:400;line-height:1;color:#1e6241}
+.protocol-rate span{font-size:10px;color:#52715a;line-height:1.4}
+.protocol-use{background:#285b42;color:white;border:0;border-radius:9px;padding:10px 15px;font-size:11px;font-weight:700;position:relative}
+.protocol-result-side{display:grid;gap:15px}
+.protocol-result-card{background:#fff;border:1px solid #e0e6dc;border-radius:17px;padding:20px 22px}
+.protocol-result-card h3{font-family:Georgia,"Times New Roman",serif;font-size:22px;font-weight:400;color:#284a35;margin:15px 0 5px}
+.protocol-result-card p{font-size:10px;line-height:1.5;color:#738573;margin:0}
+.protocol-shock{display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid #e7ece5;padding:9px 0;font-size:11px;color:#4c654f}
+.protocol-shock:last-child{border:0}
+.protocol-shock b{font-size:9px;letter-spacing:.8px}
+.protocol-shock .pass{color:#2b8050}.protocol-shock .fragile{color:#a75d37}
+.protocol-footnote{font-size:10px;line-height:1.55;color:#879186;margin:14px 0 0}
+@media(max-width:1050px){.protocol-shell{grid-template-columns:1fr}.protocol-visual{min-height:320px}.protocol-console{padding:26px}.protocol-console h2{margin:26px 0 10px}.protocol-specs{margin:8px 0 20px}.protocol-results{grid-template-columns:1fr}.protocol-result-side{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){.protocol-heading h1{font-size:57px}.protocol-beta{display:none}.protocol-shell{min-height:0}.protocol-visual{min-height:300px}.protocol-console h2{font-size:34px}.protocol-results{grid-template-columns:1fr}.protocol-result-side{grid-template-columns:1fr}}
+@media(max-width:430px){.protocol-heading h1{font-size:49px}.protocol-console{padding:22px}.protocol-visual{min-height:270px}.orbit-three{width:330px;height:330px}.orbit-two{width:235px;height:235px}.orbit-one{width:150px;height:150px}.protocol-core{width:120px;height:120px}.protocol-core>span{font-size:45px}.protocol-node{font-size:7px;padding:5px 7px}.protocol-specs strong{font-size:24px}.protocol-specs small{font-size:7px}.protocol-result-primary{padding:21px}}
+@media(prefers-reduced-motion:reduce){.protocol-shell.scanning .orbit-two,.protocol-shell.scanning .protocol-core{animation:none}}
+@media(max-width:760px){.nav-link[data-page="protocol"] .nav-icon{font-size:18px}}
+@media(max-width:430px){.protocol-coordinates{display:none}}

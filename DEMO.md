@@ -6,6 +6,8 @@
 
 **Rescue (90 sec):** Open Decision lab. Change Participant 1's availability from 18:00 to 16:00 and show School Library at 16:00 move from 3/4 to 4/4. Reset the example, then choose School Library at 18:00 from Better combinations. The supplied fictional constraints have no known conflicts. Emphasize that this is a what-if calculation: the venue is unverified and no participant has approved it.
 
+**Peace Protocol (60 sec):** Open Peace Protocol and press Initiate protocol. Show the local scan of 21 candidate paths across 1,024 modeled timelines. For the unchanged fixture, School Library at 18:30 survives every modeled case; School Library at 18:00 survives fewer. Explain the exact assumptions on screen. This is a deterministic demonstration, not a real-world probability or approval.
+
 **Trust (60 sec):** Open Final decision. Show 0/4 confirmations, then Setup status. Explain the honest states for database and AI. Show the personal needs preview and the manual-entry fallback.
 
 **Close (30 sec):** “TablePeace helps a group find a workable option before asking everyone to commit. A live pilot next needs a connected private room and genuine user feedback.”

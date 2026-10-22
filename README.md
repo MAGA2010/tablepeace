@@ -4,7 +4,7 @@
 
 > TablePeace helps student organizers find workable plans when needs conflict.
 
-A responsive, buildless planning workspace for student project organizers. The demo compares fictional group requirements, shows aggregate conflicts, and includes an interactive decision lab. Change sample availability, budgets, quiet needs, or response status to recalculate every plan and search new venue/time combinations at 30-minute intervals.
+A responsive, buildless planning workspace for student project organizers. The demo compares fictional group requirements, shows aggregate conflicts, and includes an interactive decision lab. Change sample availability, budgets, quiet needs, or response status to recalculate every plan and search new venue/time combinations at 30-minute intervals. Peace Protocol stress-tests the resulting options across 1,024 deterministic alternate timelines.
 
 ## Run locally
 
@@ -16,6 +16,7 @@ A responsive, buildless planning workspace for student project organizers. The d
 
 - Every person, plan response, and compatibility result in the example is fictional.
 - The decision lab edits four fictional profiles only in this browser tab. Its search uses known venues and half-hour start times within the example time window. It does not check venue hours, reservations, or actual member approvals.
+- Peace Protocol is a local deterministic stress test, not a prediction. It models 0, 15, or 30 minute availability shifts and optional 20% budget cuts. Its percentages describe those modeled cases only.
 - Shared rooms and persistent private responses need a database and server-side access rules. AI requirement suggestions need a server-side provider connection. Both are shown as not configured.
 - This build asks for no credentials and does not persist form input.
 - The comparison semantics were reconstructed from the supplied TablePeace implementation contract. The contract's companion reference fixture archive was not supplied, so its original reference cases cannot be claimed as reproduced.

@@ -4,7 +4,9 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const plans = fixture.options;
 const stats = Object.fromEntries(plans.map(plan => [plan.id, aggregate(plan, fixture.members, fixture.expectedCount)]));
-let selectedId = "A";
+const closestPlan = [...plans].sort((a,b) => stats[a.id].blockedMemberCount - stats[b.id].blockedMemberCount)[0];
+const recommendation = rescue(plans, fixture.members, fixture.expectedCount, closestPlan)[0];
+let selectedId = closestPlan.id;
 let simulated = null;
 let page = location.hash.slice(1) || (location.pathname === "/new" ? "new" : "results");
 let timer;
@@ -24,7 +26,7 @@ function cell(kind, result) {
   if(kind==="environment"){ count=result.environmentConflictCount; unknown=result.environmentUnknownCount; }
   const el=document.createElement("span");
   el.className="cell-result "+(count?"cell-blocked":unknown?"cell-unknown":"cell-ok");
-  el.textContent=count ? count+" conflict"+(count>1?"s":"") : unknown ? "Needs info" : result.checkedParticipantCount+" of 4 clear";
+  el.textContent=count ? count+" conflict"+(count>1?"s":"") : unknown ? "Needs info" : result.checkedParticipantCount+" of "+fixture.expectedCount+" clear";
   return el;
 }
 function updateMatrix() {
@@ -70,9 +72,23 @@ function choose(id) {
   });
   $("#decision-title").textContent=plan.venueLabel;
   $("#decision-facts").textContent=formatTime(plan.startUtc)+" · "+money(plan.costMinor)+" · "+plan.noise+" setting";
-  $("#decision-fit").textContent=(result.blockedMemberCount?"0":"4")+"/4";
-  const fit=$("#decision-fit").parentElement.nextElementSibling;
-  fit.querySelector("b").textContent=result.blockedMemberCount?"Known conflicts remain":"Needs appear compatible";
+  $("#decision-fit").textContent=result.compatibleMemberCount+"/"+fixture.expectedCount;
+  $("#decision-warning").textContent=result.blockedMemberCount
+    ? result.blockedMemberCount+" fictional response"+(result.blockedMemberCount===1?"":"s")+" still conflict with this plan."
+    : result.unknownMemberCount || result.pendingMemberCount
+      ? "Some requirements still need checking."
+      : "Known requirements fit. Approval and venue checks still remain.";
+}
+function renderRecommendation() {
+  if (!recommendation) { $("#recommendation").hidden=true; return; }
+  const { option, result, changes }=recommendation;
+  $("#recommendation-venue").textContent=option.venueLabel;
+  $("#recommendation-time").textContent=formatTime(option.startUtc)+"–"+formatTime(option.endUtc)+" · "+money(option.costMinor)+" · "+option.noise+" setting";
+  $("#recommendation-fit").textContent=result.compatibleMemberCount+"/"+fixture.expectedCount;
+  $("#recommendation-before").textContent=stats[closestPlan.id].blockedMemberCount;
+  $("#recommendation-after").textContent=result.blockedMemberCount;
+  $("#recommendation-delta").textContent=changes+" change"+(changes===1?"":"s")+" from the closest existing plan";
+  $("#recommendation-source").textContent="Based on "+closestPlan.venueLabel+" at "+formatTime(closestPlan.startUtc)+". Fictional requirements only; venue hours and approval are unverified.";
 }
 function renderPage(next) {
   page=next;
@@ -111,9 +127,11 @@ function showSetup() {
 function runRescue() {
   const venue=plans.find(p=>p.venueLabel===$("#venue-select").value);
   const time=plans.find(p=>formatTime(p.startUtc)===$("#time-select").value);
-  const option=recombine(plans[1],venue,time);
+  const option=recombine(closestPlan,venue,time);
   const result=aggregate(option,fixture.members,fixture.expectedCount);
-  simulated={option,result};selectedId="simulation";
+  simulated={option,result};
+  if(selectedId==="simulation")choose("simulation");
+  $("[data-action='use-preview']").disabled=false;
   $("#candidate-title").textContent=option.venueLabel+" · "+formatTime(option.startUtc);
   $("#candidate-venue").textContent=option.venueLabel;
   $("#candidate-facts").textContent=formatTime(option.startUtc)+"–"+formatTime(option.endUtc)+" · "+money(option.costMinor)+" · "+option.noise+" setting";
@@ -121,6 +139,18 @@ function runRescue() {
   $("#outcome-copy").textContent=result.unknownMemberCount ? result.unknownMemberCount+" response details still need checking." : "All four fictional submitted needs fit this combination.";
   $("#outcome-title").className=result.blockedMemberCount?"warn":"good";
   toast(result.blockedMemberCount?"What-if checked — conflicts remain.":"What-if checked — no known conflicts.");
+}
+function resetCandidate() {
+  const venue=plans.find(p=>p.venueLabel===$("#venue-select").value);
+  const time=plans.find(p=>formatTime(p.startUtc)===$("#time-select").value);
+  const option=recombine(closestPlan,venue,time);
+  $("#candidate-title").textContent=option.title;
+  $("#candidate-venue").textContent=option.venueLabel;
+  $("#candidate-facts").textContent=formatTime(option.startUtc)+"–"+formatTime(option.endUtc)+" · "+money(option.costMinor)+" · "+option.noise+" setting";
+  $("#outcome-title").textContent="Ready to check this combination";
+  $("#outcome-title").className="";
+  $("#outcome-copy").textContent="Run the check to see how fictional group needs fit.";
+  $("[data-action='use-preview']").disabled=true;
 }
 function addOption() {
   const wrap=$("#option-inputs"), number=wrap.children.length+1;
@@ -139,6 +169,7 @@ document.addEventListener("click",event=>{
   const action=event.target.closest("[data-action]")?.dataset.action;
   if(action==="setup"||action==="ai"){showSetup();return;}
   if(action==="rescue"){runRescue();return;}
+  if(action==="open-recommendation"){$("#venue-select").value=recommendation.option.venueLabel;$("#time-select").value=formatTime(recommendation.option.startUtc);runRescue();setPage("explore");return;}
   if(action==="use-preview"){if(!simulated){toast("Check a combination first.");return;}choose("simulation");setPage("results");return;}
   if(action==="cards"||action==="matrix"){const cards=action==="cards";$("#matrix").hidden=cards;$("#cards").hidden=!cards;$$(".view-toggle button").forEach(b=>b.classList.toggle("selected",b.dataset.action===action));return;}
   if(action==="add-option"){addOption();return;}
@@ -163,5 +194,7 @@ $("#create-form").addEventListener("submit",event=>{
   if(errors.length){out.scrollIntoView({behavior:"smooth",block:"center"});return;}showSetup();
 });
 document.addEventListener("keydown",event=>{if(event.key==="Escape")closeModal();});
+$("#venue-select").addEventListener("change",resetCandidate);
+$("#time-select").addEventListener("change",resetCandidate);
 window.addEventListener("popstate",()=>renderPage(location.hash.slice(1)||(location.pathname==="/new"?"new":"results")));
-updateMatrix();choose("A");setPage(["overview","needs","results","explore","decision","new"].includes(page)?page:"results");
+renderRecommendation();resetCandidate();updateMatrix();setPage(["overview","needs","results","explore","decision","new"].includes(page)?page:"results");

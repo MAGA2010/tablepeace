@@ -41,6 +41,7 @@ export function aggregate(option, members, expectedCount = 4) {
   const count = code => checked.filter(r => r.reasons.includes(code)).length;
   const result = {
     optionId: option.id, blockedMemberCount: checked.filter(r => r.status === 'blocked').length,
+    compatibleMemberCount: checked.filter(r => r.status === 'compatible').length,
     unknownMemberCount: checked.filter(r => r.reasons.some(c => ['TIME_UNSPECIFIED', 'BUDGET_UNSPECIFIED', 'QUIET_REQUIREMENT_UNSPECIFIED', 'VENUE_NOISE_UNVERIFIED'].includes(c))).length,
     pendingMemberCount: Math.max(0, expectedCount - checked.length), checkedParticipantCount: checked.length,
     timeConflictCount: count('TIME_CONFLICT'), budgetConflictCount: count('OVER_BUDGET'), environmentConflictCount: count('NOT_QUIET'),

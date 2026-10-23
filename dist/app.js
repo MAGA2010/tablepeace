@@ -15,6 +15,7 @@ let protocolResult = null;
 let page = location.hash.slice(1) || (location.pathname === "/new" ? "new" : "results");
 let timer;
 let liveAvailable=false;
+let aiConfigured=false;
 const money = cents => cents === 0 ? "Free" : "¥" + (cents / 100).toFixed(cents % 100 ? 2 : 0);
 function labelStatus(status) {
   const names = { blocked:"Conflicts", needs_info:"Needs info", compatible:"Fits", pending:"Waiting" };
@@ -100,6 +101,12 @@ function renderPage(next) {
   page=next;
   $$(".page-view").forEach(section=>section.hidden=section.dataset.view!==next);
   $$(".nav-link").forEach(link=>link.classList.toggle("active",link.dataset.page===next));
+  const example=next!=="new";
+  $(".crumbs b").textContent=example?"Friday project meetup":"New planning room";
+  $(".crumbs span:last-child").textContent=example?"Example conversation":liveAvailable?"Live room setup":"Static preview";
+  $(".readonly-pill").textContent=example?"Illustrative demo":liveAvailable?"Live setup":"Preview only";
+  $(".demo-banner strong").textContent=example?"Example workspace · fictional responses":liveAvailable?"Live room setup · nothing created yet":"Preview only · no live room connected";
+  $(".demo-banner small").textContent=example?"Explore the planning flow. No real people, rooms or decisions are connected.":liveAvailable?"Creating a room stores its details on this server and creates private invitation links.":"This static page cannot create a shared room. Run the TablePeace server to use live rooms.";
 }
 function setPage(next) {
   history.pushState(null,"","#"+next);
@@ -119,14 +126,14 @@ function showSetup() {
   const x=document.createElement("button");x.className="modal-close";x.textContent="×";x.setAttribute("aria-label","Close");x.onclick=closeModal;
   const eyebrow=document.createElement("div");eyebrow.className="eyebrow";eyebrow.textContent="LIVE FEATURES · SETUP STATUS";
   const h=document.createElement("h2");h.textContent="Connect your services to go live";
-  const p=document.createElement("p");p.textContent=liveAvailable?"Shared rooms are available on this server. AI suggestions are not connected.":"This static preview runs in your browser. Shared rooms need the TablePeace Node server; AI suggestions are not connected.";
+  const p=document.createElement("p");p.textContent=liveAvailable?"Shared rooms are available on this server. AI status reflects secure server configuration.":"This static preview runs in your browser. Shared rooms need the TablePeace Node server, and AI needs a provider configured on that server.";
   const integrations=document.createElement("div");integrations.className="integration-list";
-  [["Shared rooms & private needs",liveAvailable?"Local persistent room store with private invitation links":"Run the TablePeace Node server"],["AI requirement suggestions","AI provider connection on a secure server"]].forEach((pair,index)=>{
+  [["Shared rooms & private needs",liveAvailable?"Local persistent room store with private invitation links":"Run the TablePeace Node server"],["AI requirement suggestions",aiConfigured?"Server-side provider is ready; participants must opt in":"Set AI_API_KEY and AI_MODEL on a secure server"]].forEach((pair,index)=>{
     const row=document.createElement("div");row.className="integration-row";
     const copy=document.createElement("span"),title=document.createElement("b"),desc=document.createElement("small"),status=document.createElement("i");
-    title.textContent=pair[0];desc.textContent=pair[1];status.textContent=index===0&&liveAvailable?"Ready":"Not configured";copy.append(title,desc);row.append(copy,status);integrations.append(row);
+    title.textContent=pair[0];desc.textContent=pair[1];status.textContent=index===0?(liveAvailable?"Ready":"Not configured"):(aiConfigured?"Ready":"Not configured");copy.append(title,desc);row.append(copy,status);integrations.append(row);
   });
-  const note=document.createElement("div");note.className="setup-callout";note.textContent=liveAvailable?"Room responses are stored by this server. Anyone with a private invite link can access that participant slot.":"Nothing has been saved or sent. No API keys are requested here; credentials belong in secure server settings.";
+  const note=document.createElement("div");note.className="setup-callout";note.textContent=liveAvailable?"Room responses are stored by this server. Anyone with a private invite link can access that participant slot. AI notes are sent only after participant consent and are never stored.":"Nothing has been saved or sent. No API keys are requested here; credentials belong in secure server settings.";
   const done=document.createElement("button");done.className="button button-primary full-button";done.textContent="Got it";done.onclick=closeModal;
   box.append(x,eyebrow,h,p,integrations,note,done);backdrop.append(box);$("#modal-root").append(backdrop);done.focus();
 }
@@ -334,7 +341,8 @@ $("#create-form").addEventListener("submit",async event=>{
   try {
     const health=await fetch("./api/health");
     if(!health.ok || !health.headers.get("content-type")?.includes("application/json")){showSetup();return;}
-    const response=await fetch("./api/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#room-title").value.trim(),expectedCount:Number($("#create-form .field-pair select").value),options})});
+    const selects=$("#create-form .field-pair select");
+    const response=await fetch("./api/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#room-title").value.trim(),expectedCount:Number(selects[0].value),timeZone:selects[1].selectedIndex===1?"Asia/Hong_Kong":"Asia/Shanghai",options})});
     const result=await response.json();
     if(!response.ok)throw new Error(result.error||"Room creation failed.");
     location.href=result.hostUrl;
@@ -349,4 +357,4 @@ $("#time-select").addEventListener("change",resetCandidate);
 $("#lab-members").addEventListener("change",updateLab);
 window.addEventListener("popstate",()=>renderPage(location.hash.slice(1)||(location.pathname==="/new"?"new":"results")));
 renderLabMembers();renderLabResults();renderRecommendation();resetCandidate();updateMatrix();setPage(["overview","needs","results","explore","decision","lab","protocol","new"].includes(page)?page:"results");
-fetch("./api/health").then(response=>{liveAvailable=response.ok&&response.headers.get("content-type")?.includes("application/json");if(liveAvailable){$(".create-intro").textContent="Live room · responses save on this server and invitation links open separate participant slots.";$("#create-form button[type='submit']").textContent="Create live room →";$("#create-form>small").textContent="Private responses are stored on this server.";}}).catch(()=>{});
+fetch("./api/health").then(async response=>{liveAvailable=response.ok&&response.headers.get("content-type")?.includes("application/json");const health=liveAvailable?await response.json():null;aiConfigured=health?.ai?.configured===true;$(".setup-state").textContent=liveAvailable?(aiConfigured?"Ready":"AI setup"):"Needs setup";if(liveAvailable){$(".create-intro").textContent="Live room · responses save on this server and invitation links open separate participant slots.";$("#create-form button[type='submit']").textContent="Create live room →";$("#create-form>small").textContent="Private responses are stored on this server.";}renderPage(page);}).catch(()=>renderPage(page));

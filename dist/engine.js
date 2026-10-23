@@ -34,18 +34,34 @@ export function evaluateMember(option, member) {
   if (typeof member.needsQuiet !== 'boolean') unknown.push('QUIET_REQUIREMENT_UNSPECIFIED');
   else if (member.needsQuiet && option.noise === 'unknown') unknown.push('VENUE_NOISE_UNVERIFIED');
   else if (member.needsQuiet && option.noise !== 'quiet') failures.push('NOT_QUIET');
+  if (Array.isArray(member.unresolvedHardRequirements) && member.unresolvedHardRequirements.length) unknown.push('UNRESOLVED_HARD_REQUIREMENT');
   return { status: failures.length ? 'blocked' : unknown.length ? 'needs_info' : 'compatible', reasons: [...failures, ...unknown] };
+}
+export function preferenceFit(option, member) {
+  if (!member?.submitted) return null;
+  const checks = [];
+  if (member.favoriteOptionId) checks.push(member.favoriteOptionId === (option.sourceVenueId || option.id));
+  if (member.preferredNoise) checks.push(member.preferredNoise === option.noise);
+  if (Number.isSafeInteger(member.preferredBudgetMinor)) checks.push(option.costMinor <= member.preferredBudgetMinor);
+  if (!checks.length) return null;
+  return { fit: checks.filter(Boolean).length / checks.length, matched: checks.filter(Boolean).length, total: checks.length };
 }
 export function aggregate(option, members, expectedCount = 4) {
   const checked = members.filter(m => m?.submitted).map(m => evaluateMember(option, m));
   const count = code => checked.filter(r => r.reasons.includes(code)).length;
+  const preferenceChecks = members.map(member => preferenceFit(option, member)).filter(Boolean);
+  const preferenceFitPercent = preferenceChecks.length
+    ? Math.round(preferenceChecks.reduce((total, item) => total + item.fit, 0) * 100 / preferenceChecks.length)
+    : null;
   const result = {
     optionId: option.id, blockedMemberCount: checked.filter(r => r.status === 'blocked').length,
     compatibleMemberCount: checked.filter(r => r.status === 'compatible').length,
-    unknownMemberCount: checked.filter(r => r.reasons.some(c => ['TIME_UNSPECIFIED', 'BUDGET_UNSPECIFIED', 'QUIET_REQUIREMENT_UNSPECIFIED', 'VENUE_NOISE_UNVERIFIED'].includes(c))).length,
+    unknownMemberCount: checked.filter(r => r.reasons.some(c => ['TIME_UNSPECIFIED', 'BUDGET_UNSPECIFIED', 'QUIET_REQUIREMENT_UNSPECIFIED', 'VENUE_NOISE_UNVERIFIED', 'UNRESOLVED_HARD_REQUIREMENT'].includes(c))).length,
     pendingMemberCount: Math.max(0, expectedCount - checked.length), checkedParticipantCount: checked.length,
     timeConflictCount: count('TIME_CONFLICT'), budgetConflictCount: count('OVER_BUDGET'), environmentConflictCount: count('NOT_QUIET'),
     timeUnknownCount: count('TIME_UNSPECIFIED'), budgetUnknownCount: count('BUDGET_UNSPECIFIED'), environmentUnknownCount: checked.filter(r => r.reasons.includes('QUIET_REQUIREMENT_UNSPECIFIED') || r.reasons.includes('VENUE_NOISE_UNVERIFIED')).length,
+    unresolvedHardRequirementCount: count('UNRESOLVED_HARD_REQUIREMENT'),
+    preferenceFitPercent, preferenceMemberCount: preferenceChecks.length,
     favoriteCount: members.filter(m => m?.submitted && m.favoriteOptionId === option.id).length
   };
   result.groupStatus = result.blockedMemberCount ? 'blocked' : result.unknownMemberCount ? 'needs_info' : result.pendingMemberCount ? 'pending' : 'compatible';
@@ -54,7 +70,7 @@ export function aggregate(option, members, expectedCount = 4) {
 export function recombine(base, venue, sourceTime) {
   const duration = time(base.endUtc) - time(base.startUtc);
   const end = new Date(time(sourceTime.startUtc) + duration).toISOString();
-  return { ...base, id: 'simulation', title: `${venue.venueLabel} · ${formatTime(sourceTime.startUtc)}`, venueLabel: venue.venueLabel, costMinor: venue.costMinor, noise: venue.noise, icon: venue.icon, startUtc: sourceTime.startUtc, endUtc: end, verified: false, source: 'rescue', revision: 1 };
+  return { ...base, id: 'simulation', sourceVenueId: venue.id, title: `${venue.venueLabel} · ${formatTime(sourceTime.startUtc)}`, venueLabel: venue.venueLabel, costMinor: venue.costMinor, noise: venue.noise, icon: venue.icon, startUtc: sourceTime.startUtc, endUtc: end, verified: false, source: 'rescue', revision: 1 };
 }
 const key = o => [o.venueLabel, o.costMinor, o.noise, time(o.startUtc), time(o.endUtc)].join('|');
 export function rescue(options, members, expectedCount, base = options[1]) {
@@ -98,6 +114,7 @@ export function searchAlternatives(options, members, expectedCount, base = optio
     a.result.blockedMemberCount - b.result.blockedMemberCount ||
     a.result.unknownMemberCount - b.result.unknownMemberCount ||
     b.result.compatibleMemberCount - a.result.compatibleMemberCount ||
+    (b.result.preferenceFitPercent ?? -1) - (a.result.preferenceFitPercent ?? -1) ||
     a.changes - b.changes ||
     a.option.costMinor - b.option.costMinor ||
     time(a.option.startUtc) - time(b.option.startUtc) ||

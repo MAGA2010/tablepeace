@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RoomStore } from './room-store.mjs';
+import { AiUnavailableError, aiIsConfigured, interpretRequirements, selectAlternativeSuggestions } from './ai-service.mjs';
+import { aggregate, searchAlternatives } from '../dist/engine.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const dataFile = process.env.TABLEPEACE_DATA_FILE || path.resolve(root, '../.data/rooms.json');
@@ -23,15 +25,32 @@ async function body(req) {
   try { return JSON.parse(value); } catch { throw new Error('Invalid JSON.'); }
 }
 async function api(req, res, url) {
-  if (url.pathname === '/api/health' && req.method === 'GET') return send(res, 200, { status: 'ready' });
+  if (url.pathname === '/api/health' && req.method === 'GET') return send(res, 200, { status: 'ready', ai: { configured: aiIsConfigured() } });
   const origin = `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
   if (url.pathname === '/api/rooms' && req.method === 'POST') return send(res, 201, await store.create(await body(req), origin));
-  const match = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(proposal|response|decision))?$/.exec(url.pathname);
+  const match = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(proposal|response|decision)|\/ai\/(parse|alternatives))?$/.exec(url.pathname);
   if (!match) return send(res, 404, { error: 'Not found.' });
   const room = store.get(match[1]);
   const bearer = req.headers.authorization?.replace(/^Bearer /, '');
   const auth = store.authenticate(room, bearer);
-  if (!match[2] && req.method === 'GET') return send(res, 200, store.snapshot(room, auth, origin));
+  if (!match[2] && !match[3] && req.method === 'GET') return send(res, 200, store.snapshot(room, auth, origin));
+  if (match[3] === 'parse' && req.method === 'POST' && auth.role === 'participant') {
+    const input = await body(req);
+    if (input?.consent !== true) return send(res, 400, { error: 'Give consent before sending this note to the AI provider.' });
+    return send(res, 200, await interpretRequirements({ note: input.note, room, env: process.env }));
+  }
+  if (match[3] === 'alternatives' && req.method === 'POST' && auth.role === 'host') {
+    const submitted = room.participants.filter(person => person.response).map(person => person.response);
+    if (submitted.length !== room.expectedCount) return send(res, 409, { error: 'Wait until everyone has submitted before asking for alternatives.' });
+    const existing = room.options.map(option => aggregate(option, submitted, room.expectedCount));
+    if (existing.some(result => result.groupStatus === 'compatible')) return send(res, 409, { error: 'An offered plan already fits the submitted hard requirements.' });
+    const candidates = searchAlternatives(room.options, submitted, room.expectedCount, room.proposal.option);
+    const conflicts = { optionsChecked: existing.length, noOriginalPlanFits: true };
+    return send(res, 200, { suggestions: await selectAlternativeSuggestions({
+      candidates: candidates.map((item, index) => ({ ...item, candidateId: 'candidate-' + index })),
+      conflicts, timeZone: room.timeZone || 'Asia/Shanghai', env: process.env
+    }) });
+  }
   if (match[2] === 'response' && req.method === 'PUT' && auth.role === 'participant') {
     await store.submit(room, auth.slot, await body(req));
     return send(res, 200, store.snapshot(room, auth, origin));
@@ -58,7 +77,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': types[path.extname(filename)] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(file);
   } catch (error) {
-    if (req.url?.startsWith('/api/')) return send(res, error.message === 'Room not found.' ? 404 : error.message === 'Invalid room link.' ? 401 : 400, { error: error.message });
+    if (req.url?.startsWith('/api/')) return send(res, error instanceof AiUnavailableError ? 503 : error.message === 'Room not found.' ? 404 : error.message === 'Invalid room link.' ? 401 : 400, { error: error.message });
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not found');
   }

@@ -13,6 +13,9 @@ const equal = (left, right) => {
 const validIso = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) && Number.isFinite(Date.parse(value));
 const capped = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const clone = value => structuredClone(value);
+const timeZones = new Set(['Asia/Shanghai', 'Asia/Hong_Kong']);
+const requirementCategories = new Set(['time', 'budget', 'accessibility', 'location', 'atmosphere', 'other']);
+const reviewedFields = new Set(['maximumBudget', 'preferredBudget', 'availableAfter', 'needsQuiet', 'preferredNoise', 'unresolvedHard']);
 
 export class RoomStore {
   constructor(filename) { this.filename = filename; this.rooms = {}; this.queue = Promise.resolve(); }
@@ -39,6 +42,7 @@ export class RoomStore {
     return this.mutate(() => {
       const title = capped(input?.title, 80);
       const expectedCount = Number(input?.expectedCount);
+      const timeZone = timeZones.has(input?.timeZone) ? input.timeZone : 'Asia/Shanghai';
       if (!title || !Number.isInteger(expectedCount) || expectedCount < 3 || expectedCount > 8) throw new Error('Enter a room title and 3–8 people.');
       if (!Array.isArray(input.options) || input.options.length < 2 || input.options.length > 4) throw new Error('Add 2–4 complete plan options.');
       const options = input.options.map((raw, index) => {
@@ -56,7 +60,7 @@ export class RoomStore {
       const id = randomBytes(12).toString('base64url');
       const hostToken = token(), secret = token();
       this.rooms[id] = {
-        id, title, expectedCount, options, hostHash: digest(hostToken).toString('hex'), secret,
+        id, title, expectedCount, timeZone, options, hostHash: digest(hostToken).toString('hex'), secret,
         participants: Array.from({ length: expectedCount }, (_, index) => ({ id: index + 1, response: null, accepted: null })),
         proposal: { option: options[0], revision: 1 }, createdAt: new Date().toISOString()
       };
@@ -80,7 +84,7 @@ export class RoomStore {
     throw new Error('Invalid room link.');
   }
   snapshot(room, auth, origin) {
-    const base = { id: room.id, title: room.title, expectedCount: room.expectedCount, options: room.options, proposal: room.proposal, role: auth.role };
+    const base = { id: room.id, title: room.title, expectedCount: room.expectedCount, timeZone: room.timeZone || 'Asia/Shanghai', options: room.options, proposal: room.proposal, role: auth.role };
     const submitted = room.participants.filter(p => p.response).length;
     const approvals = room.participants.filter(p => p.accepted === true).length;
     const rejections = room.participants.filter(p => p.accepted === false).length;
@@ -112,7 +116,21 @@ export class RoomStore {
       const budget = input?.maxBudgetMinor;
       if (budget !== null && (!Number.isSafeInteger(budget) || budget < 0)) throw new Error('Enter a valid budget or leave it unknown.');
       if (![true, false, null].includes(input?.needsQuiet)) throw new Error('Choose a quiet-space requirement.');
-      participant.response = { submitted: true, availability, maxBudgetMinor: budget, needsQuiet: input.needsQuiet };
+      const preferredBudgetMinor = input?.preferredBudgetMinor ?? null;
+      if (preferredBudgetMinor !== null && (!Number.isSafeInteger(preferredBudgetMinor) || preferredBudgetMinor < 0)) throw new Error('Enter a valid preferred budget or leave it blank.');
+      const preferredNoise = input?.preferredNoise ?? null;
+      if (preferredNoise !== null && !['quiet', 'moderate', 'lively'].includes(preferredNoise)) throw new Error('Choose a valid preferred setting.');
+      const favoriteOptionId = input?.favoriteOptionId ?? null;
+      if (favoriteOptionId !== null && !room.options.some(option => option.id === favoriteOptionId)) throw new Error('Choose one of the offered plans.');
+      const unresolvedHardRequirements = input?.unresolvedHardRequirements ?? [];
+      if (!Array.isArray(unresolvedHardRequirements) || unresolvedHardRequirements.length > 5 || unresolvedHardRequirements.some(category => !requirementCategories.has(category))) throw new Error('Review unsupported requirements manually.');
+      const reviewedInterpretations = input?.reviewedInterpretations ?? [];
+      if (!Array.isArray(reviewedInterpretations) || reviewedInterpretations.length > 8 || reviewedInterpretations.some(item => !item || !reviewedFields.has(item.field) || item.reviewed !== true)) throw new Error('Confirm each AI suggestion before saving.');
+      participant.response = {
+        submitted: true, availability, maxBudgetMinor: budget, needsQuiet: input.needsQuiet,
+        preferredBudgetMinor, preferredNoise, favoriteOptionId,
+        unresolvedHardRequirements: [...new Set(unresolvedHardRequirements)], reviewedInterpretations: clone(reviewedInterpretations)
+      };
       this.invalidate(room);
       return { revision: room.proposal.revision };
     });

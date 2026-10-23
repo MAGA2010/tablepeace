@@ -1,17 +1,23 @@
-# Five-minute walkthrough
+# Five-minute TablePeace demo
 
-**Opening (30 sec):** “Student project organizers juggle schedules, budgets, and room needs. TablePeace lets a group submit requirements privately, compare plans, and confirm one together. This prototype has not yet been validated with organizers.”
+## Prepare
 
-**Live room (2 min):** Run `npm run dev` and open Create a room. Add two venues and 3 participants. Copy each distinct invite link into a separate browser profile or private window. Submit one response per slot. Watch the organizer view change from waiting to aggregate counts. Propose a compatible combination. Accept it from every participant link; show the confirmed state. Edit one response and show that all prior approvals clear.
+Run `npm run dev` from the project folder and open `http://127.0.0.1:4178`. For a stable walkthrough, use the fictional scenario below and separate browser profiles for the four participant links. Do not describe the seeded scenario as research or real user activity. To demonstrate live AI, set `AI_API_KEY` and `AI_MODEL` in the server `.env` first; the current judging build has no provider credentials, so the honest flow is manual entry plus the visible “AI not configured” recovery state.
 
-**Compare (90 sec):** Open Group compatibility. Point out the three venue options and the aggregate checks. Coffee Hub has one time, one budget, and one environment conflict. The free School Library has one time conflict. Makerspace has two conflicts. Individual schedules and budgets remain hidden.
+## Script
 
-**Rescue (90 sec):** Open Decision lab. Change Participant 1's availability from 18:00 to 16:00 and show School Library at 16:00 move from 3/4 to 4/4. Reset the example, then choose School Library at 18:00 from Better combinations. The supplied fictional constraints have no known conflicts. Emphasize that this is a what-if calculation: the venue is unverified and no participant has approved it.
+**0:00–0:30 — Problem.** “A student group can agree on an activity and still get stuck on schedule, cost, or access needs. TablePeace collects private requirements, separates hard constraints from preferences, and asks everyone to confirm the same plan revision. This is a prototype; we have not completed external user research.”
 
-**Peace Protocol (60 sec):** Open Peace Protocol and press Initiate protocol. Show the local scan of 21 candidate paths across 1,024 modeled timelines. For the unchanged fixture, School Library at 18:30 survives every modeled case; School Library at 18:00 survives fewer. Explain the exact assumptions on screen. This is a deterministic demonstration, not a real-world probability or approval.
+**0:30–1:15 — Create and invite.** Open **Create a room**, enter “Friday project meetup,” choose four people and the room time zone, then add three options: Coffee Hub at 18:00 for ¥35 with a moderate setting; School Library at 18:00 for free with a quiet setting; and Makerspace at 19:00 for ¥60 with a lively setting. Create the room and open the four separate invitation links in distinct browser profiles.
 
-**Trust (60 sec):** The fictional Final decision shows 0/4 approvals because it is separate from the live room. Show that the server stores live responses locally and AI suggestions are unconfigured. Venue hours and bookings are still unverified.
+**1:15–2:15 — Private requirements.** In the configured AI version, each person opts in, enters one sentence, reviews the exact phrase and proposed fields, corrects or confirms it, then explicitly saves. Use notes such as “I can arrive after 19:00,” “I need a quiet space,” “I can spend at most ¥40,” and “I need step-free access.” With the current unconfigured server, fill supported fields manually and demonstrate that an unsupported hard need such as step-free access remains unresolved. The AI note is not sent while the provider is unconfigured.
 
-**Close (30 sec):** “TablePeace finds a workable option and asks every participant to confirm the same revision. A public pilot needs server hosting, HTTPS, and genuine user feedback.”
+**2:15–3:00 — Compare and explain.** The organizer sees only aggregate counts. Point out the hard time, budget, and setting conflicts, the unresolved hard-requirement count, and soft preference fit. The percentage is calculated per participant from that person’s expressed soft preferences, then averaged equally; it does not change feasibility. No individual schedule or budget appears in the organizer view.
 
-All sample people and responses are fictional. Do not describe the demo as tested with participants.
+**3:00–4:15 — Find a proposal and decide.** Show deterministic combinations generated from the room’s known venues and available times. If AI is configured, use **Ask AI to rank alternatives** only after all original options fail; its output can choose only generated candidates, and every candidate’s feasibility remains the deterministic result. Propose School Library at 19:00 if the submitted hard needs support it. Accept from the participant links. Then reject one revision to show that rejection is recorded as rejection, not acceptance; the organizer can propose a new version.
+
+**4:15–5:00 — Persistence and limits.** Refresh the host and participant pages. Show that private responses, review acknowledgements, the current proposal revision, and each decision persist. Close with: “The local room server is working, but public collaboration needs an HTTPS backend and persistent shared hosting. AI provider access and user research are not configured or claimed in this demo. Venue availability is still unverified.”
+
+## Run checks
+
+Run `npm test`, `npm run lint`, and `npm run build`. The AI tests use mocked provider responses. They validate schema, source grounding, failure handling, and candidate-ID restrictions; they do not count as a live AI comparison or user study.

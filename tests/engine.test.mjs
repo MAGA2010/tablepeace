@@ -25,6 +25,17 @@ test('missing time and unknown quiet requirements cannot become compatible', () 
   const m=member(); m.availability=[]; m.needsQuiet=null;
   assert.deepEqual(evaluateMember(f.options[1],m).reasons,['TIME_UNSPECIFIED','QUIET_REQUIREMENT_UNSPECIFIED']);
 });
+test('unresolved hard requirements remain needs-info and soft preferences never change feasibility', () => {
+  const m=member(); m.unresolvedHardRequirements=['accessibility']; m.favoriteOptionId='B'; m.preferredNoise='lively'; m.preferredBudgetMinor=100;
+  const result=aggregate(f.options[0], [m], 1);
+  assert.equal(result.groupStatus,'needs_info');
+  assert.equal(result.unresolvedHardRequirementCount,1);
+  assert.equal(result.preferenceFitPercent,0);
+  m.unresolvedHardRequirements=[];
+  const compatible=aggregate(f.options[0], [m], 1);
+  assert.equal(compatible.groupStatus,'compatible');
+  assert.equal(compatible.preferenceFitPercent,0);
+});
 test('known violations take precedence over unknown facts and retain both reasons', () => {
   const m=member(); m.maxBudgetMinor=0; m.needsQuiet=null;
   assert.equal(evaluateMember(f.options[0],m).status,'blocked'); assert.ok(evaluateMember(f.options[0],m).reasons.includes('QUIET_REQUIREMENT_UNSPECIFIED'));
@@ -53,6 +64,12 @@ test('search responds to changed requirements', () => {
   const ranked=searchAlternatives(f.options,members,4,f.options[1]);
   assert.equal(aggregate(f.options[1],members,4).compatibleMemberCount,4);
   assert.equal(ranked[0].option.title,'School Library · 16:30');
+});
+test('favorite-venue preference carries across a deterministic time recombination', () => {
+  const m=member(); m.favoriteOptionId='B';
+  const option=recombine(f.options[0],f.options[1],{startUtc:'2026-10-23T11:00:00.000Z'});
+  assert.equal(option.sourceVenueId,'B');
+  assert.equal(aggregate(option,[m],1).preferenceFitPercent,100);
 });
 test('Peace Protocol is deterministic, includes a fallback, and does not mutate requirements', () => {
   const before=JSON.stringify(f);

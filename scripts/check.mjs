@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-for(const file of ["dist/app.js","dist/engine.js","dist/protocol.js","dist/live.js","scripts/serve.mjs","scripts/room-store.mjs"]){
+for(const file of ["dist/app.js","dist/engine.js","dist/protocol.js","dist/live.js","scripts/serve.mjs","scripts/room-store.mjs","scripts/ai-service.mjs"]){
  const result=spawnSync(process.execPath,["--check",path.join(root,file)],{stdio:"inherit"});
  if(result.status!==0)process.exit(result.status||1);
 }

@@ -1,40 +1,41 @@
-# TablePeace demo
+# TablePeace
 
-**Different needs. One workable plan.**
+**Different needs. One workable plan.** TablePeace helps a small group plan together when schedules, budgets, accessibility needs, and preferences differ.
 
-> TablePeace helps student organizers find workable plans when needs conflict.
-
-A responsive, buildless planning workspace for student project organizers. The fictional example compares group requirements, searches new venue/time combinations, and runs Peace Protocol across 1,024 deterministic alternate timelines. The Node server also runs shared rooms: organizers create a room, send distinct invitation links, collect private responses, propose a versioned plan, and see unanimous confirmation when every participant accepts a compatible plan.
+The existing static HTML/CSS/JavaScript app includes a fictional example, a deterministic comparison and what-if engine, and a Node shared-room server. Organizers create rooms for 3–8 people, share a separate private invite link with each person, collect requirements, propose a versioned plan, and confirm only after every participant accepts a compatible proposal.
 
 ## Run locally
 
-- Install Node.js 20 or newer.
-- Run npm run dev.
-- Open the local URL printed by the server (default http://127.0.0.1:4178).
-- Open **Create a room** to use the live flow. Room data is saved in `.data/rooms.json` by default. Set `TABLEPEACE_DATA_FILE` to use another path. Set `HOST=0.0.0.0` and `PORT` when hosting the server on a network.
+- Use Node.js 20.6 or newer.
+- No dependency installation is needed; the project has no runtime package dependencies.
+- Copy `.env.example` to `.env` if you want to configure an AI provider. Leave credentials blank for the manual-only demo.
+- Run `npm run dev` and open `http://127.0.0.1:4178`.
+- Open **Create a room**. Room data is persisted in `.data/rooms.json` by default. Set `TABLEPEACE_DATA_FILE`, `HOST`, or `PORT` to change the storage location or bind address.
+
+## AI behavior and privacy
+
+AI requirement drafts are optional and server-side. Add `AI_API_KEY` and `AI_MODEL` to the server environment; `AI_BASE_URL` is optional and defaults to the OpenAI API base. The provider must support OpenAI-compatible `/chat/completions` and JSON mode. Never put a provider key in browser code or commit `.env`.
+
+Participants explicitly consent before sending a note. The AI returns source phrases and structured draft fields; the participant reviews each suggestion, and the final response form still needs an explicit save. Low-certainty or unclear suggestions are not applied. Unsupported hard requirements stay unresolved, so no plan can be marked as fitting them. Raw notes are not stored in the room file. A configured provider receives the volunteered note, so use a provider approved for your data and review its handling terms.
+
+When no original option fits, the organizer can ask the AI to rank up to three alternatives generated from room venues, available time windows, and confirmed responses. The AI cannot invent venue facts or decide feasibility. TablePeace reruns deterministic checks and labels each candidate with hard conflicts, unknowns, and equal-weight soft-preference fit. Without provider configuration, the same manual deterministic alternatives remain available and are labeled as such.
 
 ## Honest demo boundaries
 
-- Every person, plan response, and compatibility result in the example is fictional.
-- The decision lab edits four fictional profiles only in this browser tab. Its search uses known venues and half-hour start times within the example time window. It does not check venue hours, reservations, or actual member approvals.
-- Peace Protocol is a local deterministic stress test, not a prediction. It models 0, 15, or 30 minute availability shifts and optional 20% budget cuts. Its percentages describe those modeled cases only.
-- The Node server persists shared rooms to one local JSON file. Organizer links show aggregate counts after all participants submit; each participant link shows only that slot's response. Anyone holding a link can act as its owner. Use HTTPS and persistent storage before sharing over the internet. Run one server process per data file.
-- The GitHub Pages deployment serves `dist/` only. It cannot run `/api/rooms`; its Create a room screen explains that a TablePeace server is required. The Node server needs a separate deployment for public collaboration.
-- AI requirement suggestions are not connected. Peace Protocol is deterministic simulation, not a model prediction.
-- The comparison semantics were reconstructed from the supplied TablePeace implementation contract. The contract's companion reference fixture archive was not supplied, so its original reference cases cannot be claimed as reproduced.
+- Every person, plan, response, and result in the example workspace is fictional.
+- The decision lab edits fictional profiles in the browser only. Peace Protocol is a deterministic stress test of modeled assumptions, not a prediction.
+- Hard feasibility is separate from soft-preference fit. Each participant’s expressed soft preferences are scored first, then participants are averaged equally. Soft preferences never turn a hard conflict into a feasible plan.
+- Unsupported hard needs remain unresolved; this prototype does not yet evaluate accessibility or location constraints beyond its supported time, budget, and quiet-space fields.
+- Shared rooms are persisted by the local Node server. Organizer links show aggregate counts; each participant link sees only that participant’s saved response. Anyone holding an invite can act as its slot. Use HTTPS and durable database storage before public use.
+- The GitHub Pages workflow serves `dist/` only. GitHub Pages cannot run the room API or AI routes. A separate HTTPS Node deployment and persistent storage are required for a public collaborative flow. Current server/AI availability is shown in the setup state.
+- The comparison semantics were reconstructed from the supplied TablePeace implementation contract. Its companion reference archive was not supplied, so the original reference cases are not claimed as reproduced.
 
-## Validation
+## Verify
 
-Run npm test for deterministic comparison checks, npm run lint for JavaScript syntax, and npm run build to check the static site files.
+Run `npm test`, `npm run lint`, and `npm run build`. Tests include deterministic feasibility, room privacy and persistence, AI schema/source validation, safe provider failures, and constrained alternative selection. The AI tests use a mock provider; they do not demonstrate a live model run or user benefit.
 
-## Five-minute demo path
+See [DEMO.md](DEMO.md) for the five-minute presentation and [ENV.md](ENV.md) for server configuration.
 
-Use [DEMO.md](DEMO.md): run the shared room flow with separate browser profiles, then show the fictional Decision lab and Peace Protocol.
+## Live static example
 
-## Tech stack and configuration
-
-The frontend is static HTML/CSS/JavaScript. The Node.js server has no runtime package dependencies. It stores rooms on its local filesystem. No AI API key is needed.
-
-## Live demo
-
-After GitHub Pages is enabled with **GitHub Actions** as its source, the site will be available at <https://maga2010.github.io/tablepeace/>. The workflow deploys the static site from `dist/` whenever `main` changes.
+After GitHub Pages is enabled with **GitHub Actions** as its source, the static site is available at <https://maga2010.github.io/tablepeace/>. Live shared rooms require the separate Node deployment described above.

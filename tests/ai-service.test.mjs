@@ -51,6 +51,22 @@ test('AI request sends the volunteered note only after the server route invokes 
   assert.equal(JSON.stringify(result).includes(note), false);
 });
 
+test('MiniMax China base URL uses the documented native chat endpoint', async () => {
+  const note = 'I can arrive after 6 pm.';
+  let request;
+  const minimaxEnv = { AI_API_KEY: 'test-secret', AI_BASE_URL: 'https://api.minimax.cn/v1', AI_MODEL: 'MiniMax-M2.5' };
+  const fetchImpl = async (url, options) => {
+    request = { url: String(url), options, body: JSON.parse(options.body) };
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ interpretations: [entry()], unparsed: [] }) } }] }), { status: 200 });
+  };
+  const result = await interpretRequirements({ note, room, env: minimaxEnv, fetchImpl });
+  assert.equal(request.url, 'https://api.minimax.cn/v1/text/chatcompletion_v2');
+  assert.equal(request.body.model, 'MiniMax-M2.5');
+  assert.equal(request.body.response_format, undefined);
+  assert.equal(request.options.headers.Authorization, 'Bearer test-secret');
+  assert.equal(result.interpretations[0].field, 'availableAfter');
+});
+
 test('provider failures become a safe manual-entry state', async () => {
   await assert.rejects(interpretRequirements({ note: 'after 6 pm', room, env: {}, fetchImpl: async () => { throw new Error('offline'); } }), /not configured.*not been sent/i);
   await assert.rejects(interpretRequirements({ note: 'after 6 pm', room, env, fetchImpl: async () => new Response('bad', { status: 429 }) }), /could not be generated/i);

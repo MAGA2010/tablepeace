@@ -4,17 +4,28 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RoomStore } from './room-store.mjs';
 import { AiUnavailableError, aiIsConfigured, interpretRequirements, selectAlternativeSuggestions } from './ai-service.mjs';
+import { AiRateLimitError, createAiRequestLimiter } from './ai-limiter.mjs';
 import { aggregate, searchAlternatives } from '../dist/engine.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const dataFile = process.env.TABLEPEACE_DATA_FILE || path.resolve(root, '../.data/rooms.json');
 const store = new RoomStore(dataFile);
 await store.load();
+const aiLimiter = createAiRequestLimiter(process.env);
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
-const send = (res, status, value) => {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+const send = (res, status, value, headers = {}) => {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers });
   res.end(JSON.stringify(value));
 };
+function limitAiRequest(room, auth, res) {
+  const callerId = auth.role === 'host' ? 'host' : 'participant-' + auth.slot;
+  try { aiLimiter.consume(room.id, callerId); return false; }
+  catch (error) {
+    if (!(error instanceof AiRateLimitError)) throw error;
+    send(res, 429, { error: error.message }, { 'Retry-After': String(error.retryAfterSeconds) });
+    return true;
+  }
+}
 async function body(req) {
   if (!req.headers['content-type']?.startsWith('application/json')) throw new Error('Send JSON.');
   let value = '';
@@ -37,6 +48,8 @@ async function api(req, res, url) {
   if (match[3] === 'parse' && req.method === 'POST' && auth.role === 'participant') {
     const input = await body(req);
     if (input?.consent !== true) return send(res, 400, { error: 'Give consent before sending this note to the AI provider.' });
+    if (!aiIsConfigured()) return send(res, 503, { error: 'AI provider is not configured on this server. Your note has not been sent; enter the fields manually.' });
+    if (limitAiRequest(room, auth, res)) return;
     return send(res, 200, await interpretRequirements({ note: input.note, room, env: process.env }));
   }
   if (match[3] === 'alternatives' && req.method === 'POST' && auth.role === 'host') {
@@ -44,6 +57,8 @@ async function api(req, res, url) {
     if (submitted.length !== room.expectedCount) return send(res, 409, { error: 'Wait until everyone has submitted before asking for alternatives.' });
     const existing = room.options.map(option => aggregate(option, submitted, room.expectedCount));
     if (existing.some(result => result.groupStatus === 'compatible')) return send(res, 409, { error: 'An offered plan already fits the submitted hard requirements.' });
+    if (!aiIsConfigured()) return send(res, 503, { error: 'AI provider is not configured on this server. Deterministic alternatives are still available.' });
+    if (limitAiRequest(room, auth, res)) return;
     const candidates = searchAlternatives(room.options, submitted, room.expectedCount, room.proposal.option);
     const conflicts = { optionsChecked: existing.length, noOriginalPlanFits: true };
     return send(res, 200, { suggestions: await selectAlternativeSuggestions({

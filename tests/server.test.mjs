@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { createServer as createHttpServer } from 'node:http';
 import { createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -103,6 +104,68 @@ test('HTTP room flow supports four private participants, AI setup recovery, reje
     assert.equal(saved.includes('PRIVATE NOTE MUST NOT PERSIST'), false);
   } finally {
     child.kill();
+    await wait(50);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('HTTP AI route rate-limits a participant link and does not expose the server key', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'tablepeace-ai-limit-'));
+  const port = await freePort();
+  let providerCalls = 0;
+  const provider = createHttpServer(async (_req, res) => {
+    providerCalls++;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ interpretations: [], unparsed: ['I can arrive after 6 pm.'] }) } }] }));
+  });
+  await new Promise((resolve, reject) => provider.once('error', reject).listen(0, '127.0.0.1', resolve));
+  const providerUrl = `http://127.0.0.1:${provider.address().port}/v1`;
+  const child = spawn(process.execPath, ['--env-file-if-exists=.env', 'scripts/serve.mjs'], {
+    cwd: root,
+    env: {
+      ...process.env,
+      HOST: '127.0.0.1', PORT: String(port), TABLEPEACE_DATA_FILE: path.join(directory, 'rooms.json'),
+      AI_API_KEY: 'test-secret', AI_BASE_URL: providerUrl, AI_MODEL: 'test-model',
+      AI_LIMIT_CALLS_PER_LINK_DAY: '2', AI_LIMIT_LINK_COOLDOWN_SECONDS: '1'
+    },
+    stdio: ['ignore', 'ignore', 'pipe']
+  });
+  const origin = `http://127.0.0.1:${port}`;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  try {
+    let ready = false;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      try { const response = await fetch(origin + '/api/health'); if (response.ok) { ready = true; break; } } catch {}
+      if (child.exitCode !== null) break;
+      await wait(50);
+    }
+    assert.equal(ready, true);
+    const health = await (await fetch(origin + '/api/health')).json();
+    assert.deepEqual(health, { status: 'ready', ai: { configured: true } });
+    assert.equal(JSON.stringify(health).includes('test-secret'), false);
+    const options = [
+      { venueLabel: 'Library', startUtc: '2026-10-23T10:00:00.000Z', endUtc: '2026-10-23T11:00:00.000Z', costMinor: 0, noise: 'quiet' },
+      { venueLabel: 'Cafe', startUtc: '2026-10-23T10:00:00.000Z', endUtc: '2026-10-23T11:00:00.000Z', costMinor: 3000, noise: 'moderate' }
+    ];
+    const created = await (await fetch(origin + '/api/rooms', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'AI limit test', expectedCount: 3, timeZone: 'Asia/Hong_Kong', options })
+    })).json();
+    const participantToken = created.invites[0].url.split('.').at(-1);
+    const request = () => fetch(origin + `/api/rooms/${created.id}/ai/parse`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + participantToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: 'I can arrive after 6 pm.', consent: true })
+    });
+    const first = await request();
+    assert.equal(first.status, 200);
+    const second = await request();
+    assert.equal(second.status, 429);
+    assert.equal(second.headers.get('retry-after'), '1');
+    assert.equal(providerCalls, 1);
+    assert.equal((await second.text()).includes('test-secret'), false);
+  } finally {
+    child.kill();
+    await new Promise(resolve => provider.close(resolve));
     await wait(50);
     await rm(directory, { recursive: true, force: true });
   }

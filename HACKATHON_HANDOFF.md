@@ -9,22 +9,23 @@ TablePeace helps small groups turn private needs into one workable plan. Its liv
 - The local Node room server creates persistent rooms with separate participant slots. Organizers receive aggregate response data; participants see their own saved response.
 - Hard time, budget, and supported setting conflicts block a plan. Unsupported hard needs stay unresolved. Soft preferences affect fit scores but never override feasibility.
 - A proposal is confirmed only when every participant accepts the same revision. A rejection remains a rejection, and a changed proposal requires new approvals.
-- Optional AI flows are server-side, consent-based, source-grounded, and constrained to structured fields or already-generated alternative IDs. The test provider is mocked.
-- `npm test`, `npm run lint`, and `npm run build` pass. The suite has 23 tests, including privacy, persistence, feasibility, and AI failure behavior.
+- Optional AI flows are server-side, consent-based, source-grounded, and constrained to structured fields or already-generated alternative IDs. A separate local MiniMax smoke request returned the supported time and setting fields; automated tests still use a mocked provider.
+- The server caps AI at 6 requests per minute and 40 per rolling day, with 12 per room and 3 per invite link per rolling day plus a five-second per-link cooldown. These in-memory limits reset on restart.
+- `npm test`, `npm run lint`, and `npm run build` pass. The suite has 27 tests, including privacy, persistence, feasibility, provider failure, and rate-limit behavior.
 - The public GitHub Pages site serves the static demo from `dist/`. It does not host the room API.
 
 ## Limits to state clearly
 
-- No live AI provider is configured; the interface shows the setup state and manual entry remains available.
+- MiniMax is configured only in this local development environment; the public Pages site has no API key or room server. The interface shows a safe setup state when credentials are absent.
 - No public HTTPS room server or durable shared database is configured. Local rooms persist on the machine running the Node server.
-- No target-user research, live AI-versus-manual study, or venue-availability check has been completed. The example room and test data are fictional.
+- No target-user research, AI-versus-manual study, or venue-availability check has been completed. The example room and test data are fictional.
 - The companion reference-fixture archive was not supplied, so parity with those cases is not claimed.
 
 ## Demo and judge review
 
 Use [DEMO.md](DEMO.md) for the five-minute walkthrough. It covers room creation, private responses, hard versus soft needs, alternative proposals, unanimous approval, persistence, and the setup limitations. Do not present mock-provider tests as evidence of live AI quality or user benefit.
 
-The internal pre-submission self-review scored the build **3.29/5** across seven dimensions: problem clarity 4, originality 3, completeness 3, technical depth 4, demo quality 3, business value 3, and submission readiness 3. This is a heuristic review, not a prediction from a competition judge. The strongest evidence is the tested local group flow and constrained decision engine. The largest score limits are missing external research, no public shared-room backend, no live AI comparison, and no recorded demo. The detailed review is saved locally in `.hackathon/artifacts/judge-feedback.md`; `.hackathon/` is intentionally excluded from the public repository.
+The internal pre-submission self-review scored the build **3.29/5** across seven dimensions: problem clarity 4, originality 3, completeness 3, technical depth 4, demo quality 3, business value 3, and submission readiness 3. This is a heuristic review, not a prediction from a competition judge. The strongest evidence is the tested local group flow, constrained decision engine, and one successful MiniMax connectivity smoke. The largest score limits are missing external research, no public shared-room backend, no AI-versus-manual comparison, and no recorded demo. The detailed review is saved locally in `.hackathon/artifacts/judge-feedback.md`; `.hackathon/` is intentionally excluded from the public repository.
 
 ## Run and links
 

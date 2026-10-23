@@ -14,9 +14,9 @@ The existing static HTML/CSS/JavaScript app includes a fictional example, a dete
 
 ## AI behavior and privacy
 
-AI requirement drafts are optional and server-side. Add `AI_API_KEY` and `AI_MODEL` to the server environment; `AI_BASE_URL` is optional and defaults to the OpenAI API base. The provider must support OpenAI-compatible `/chat/completions` and JSON mode. Never put a provider key in browser code or commit `.env`.
+AI requirement drafts are optional and server-side. The included `.env.example` is set up for MiniMax China (`https://api.minimax.cn/v1`, `MiniMax-M2.5`); its server adapter uses MiniMax's [documented `/text/chatcompletion_v2` route](https://minimax.cn/models/text). Other providers can use an OpenAI-compatible `/chat/completions` endpoint. Never put a provider key in browser code or commit `.env`.
 
-Participants explicitly consent before sending a note. The AI returns source phrases and structured draft fields; the participant reviews each suggestion, and the final response form still needs an explicit save. Low-certainty or unclear suggestions are not applied. Unsupported hard requirements stay unresolved, so no plan can be marked as fitting them. Raw notes are not stored in the room file. A configured provider receives the volunteered note, so use a provider approved for your data and review its handling terms.
+Participants explicitly consent before sending a note. The AI returns source phrases and structured draft fields; the participant reviews each suggestion, and the final response form still needs an explicit save. Low-certainty or unclear suggestions are not applied. Unsupported hard requirements stay unresolved, so no plan can be marked as fitting them. Raw notes are not stored in the room file. A configured provider receives the volunteered note, so use a provider approved for your data and review its handling terms. The server enforces conservative per-link, per-room, per-minute, and daily request limits. These in-memory limits reset when the local server restarts; public hosting should enforce durable limits at a trusted gateway or shared store.
 
 When no original option fits, the organizer can ask the AI to rank up to three alternatives generated from room venues, available time windows, and confirmed responses. The AI cannot invent venue facts or decide feasibility. TablePeace reruns deterministic checks and labels each candidate with hard conflicts, unknowns, and equal-weight soft-preference fit. Without provider configuration, the same manual deterministic alternatives remain available and are labeled as such.
 
@@ -32,7 +32,7 @@ When no original option fits, the organizer can ask the AI to rank up to three a
 
 ## Verify
 
-Run `npm test`, `npm run lint`, and `npm run build`. Tests include deterministic feasibility, room privacy and persistence, AI schema/source validation, safe provider failures, and constrained alternative selection. The AI tests use a mock provider; they do not demonstrate a live model run or user benefit.
+Run `npm test`, `npm run lint`, and `npm run build`. Tests include deterministic feasibility, room privacy and persistence, AI schema/source validation, safe provider failures, rate limits, and constrained alternative selection. Automated AI tests use a mock provider. A separate local MiniMax smoke test confirmed structured draft connectivity; it does not establish model quality or user benefit.
 
 See [DEMO.md](DEMO.md) for the five-minute presentation and [ENV.md](ENV.md) for server configuration.
 

@@ -135,22 +135,28 @@ async function modelJson({ system, user, env, fetchImpl }) {
   if (!aiIsConfigured(env)) throw new AiUnavailableError('AI provider is not configured on this server. Your note has not been sent; enter the fields manually.');
   const base = (env.AI_BASE_URL?.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '');
   let endpoint;
-  try { endpoint = new URL(base + '/chat/completions'); }
+  let minimaxChina = false;
+  try {
+    const baseUrl = new URL(base);
+    minimaxChina = baseUrl.hostname === 'api.minimax.cn';
+    endpoint = new URL(base + (minimaxChina ? '/text/chatcompletion_v2' : '/chat/completions'));
+  }
   catch { throw new AiUnavailableError('AI provider setup is invalid. Enter the fields manually.'); }
   let response;
   try {
+    const requestPayload = {
+      model: env.AI_MODEL.trim(),
+      temperature: 0,
+      max_tokens: 500,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }]
+    };
+    if (!minimaxChina) requestPayload.response_format = { type: 'json_object' };
     response = await fetchImpl(endpoint, {
       method: 'POST',
       redirect: 'error',
       signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       headers: { Authorization: 'Bearer ' + env.AI_API_KEY.trim(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: env.AI_MODEL.trim(),
-        temperature: 0,
-        max_tokens: 500,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }]
-      })
+      body: JSON.stringify(requestPayload)
     });
     if (!response.ok) throw new Error('provider error');
     const payload = await response.json();

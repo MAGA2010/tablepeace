@@ -15,7 +15,7 @@ test('library at 18:00 clears known requirements but is unverified', () => {
 test('full interval containment and endpoint boundaries are required', () => {
   const m = member(); m.availability = [{ startUtc:f.options[0].startUtc, endUtc:f.options[0].endUtc }];
   assert.equal(evaluateMember(f.options[0],m).status,'compatible');
-  m.availability[0].endUtc = '2026-10-22T08:59:00Z'; assert.ok(evaluateMember(f.options[0],m).reasons.includes('TIME_CONFLICT'));
+  m.availability[0].endUtc = '2026-10-23T08:59:00Z'; assert.ok(evaluateMember(f.options[0],m).reasons.includes('TIME_CONFLICT'));
 });
 test('missing budget stays unknown for paid plans but does not block a free plan', () => {
   const m=member(); m.maxBudgetMinor=null;
@@ -49,7 +49,7 @@ test('search finds new half-hour starts and ranks distinct venues without changi
 });
 test('search responds to changed requirements', () => {
   const members=structuredClone(f.members);
-  members[0].availability[0].startUtc='2026-10-22T08:00:00Z';
+  members[0].availability[0].startUtc='2026-10-23T08:00:00Z';
   const ranked=searchAlternatives(f.options,members,4,f.options[1]);
   assert.equal(aggregate(f.options[1],members,4).compatibleMemberCount,4);
   assert.equal(ranked[0].option.title,'School Library · 16:30');
@@ -67,7 +67,7 @@ test('Peace Protocol is deterministic, includes a fallback, and does not mutate 
 });
 test('Peace Protocol changes its survivor when the fictional group changes', () => {
   const members=structuredClone(f.members);
-  members[0].availability[0].startUtc='2026-10-22T08:00:00Z';
+  members[0].availability[0].startUtc='2026-10-23T08:00:00Z';
   const result=stressTest(f.options,members,4,128,42);
   assert.equal(result.winner.option.title,'School Library · 16:30');
   assert.equal(result.winner.passRate,1);

@@ -14,6 +14,7 @@ let simulated = null;
 let protocolResult = null;
 let page = location.hash.slice(1) || (location.pathname === "/new" ? "new" : "results");
 let timer;
+let liveAvailable=false;
 const money = cents => cents === 0 ? "Free" : "¥" + (cents / 100).toFixed(cents % 100 ? 2 : 0);
 function labelStatus(status) {
   const names = { blocked:"Conflicts", needs_info:"Needs info", compatible:"Fits", pending:"Waiting" };
@@ -118,14 +119,14 @@ function showSetup() {
   const x=document.createElement("button");x.className="modal-close";x.textContent="×";x.setAttribute("aria-label","Close");x.onclick=closeModal;
   const eyebrow=document.createElement("div");eyebrow.className="eyebrow";eyebrow.textContent="LIVE FEATURES · SETUP STATUS";
   const h=document.createElement("h2");h.textContent="Connect your services to go live";
-  const p=document.createElement("p");p.textContent="This demo runs in your browser. Shared rooms and AI suggestions need server services that are not connected yet.";
+  const p=document.createElement("p");p.textContent=liveAvailable?"Shared rooms are available on this server. AI suggestions are not connected.":"This static preview runs in your browser. Shared rooms need the TablePeace Node server; AI suggestions are not connected.";
   const integrations=document.createElement("div");integrations.className="integration-list";
-  [["Shared rooms & private needs","Database connection and room access rules"],["AI requirement suggestions","AI provider connection on a secure server"]].forEach(pair=>{
+  [["Shared rooms & private needs",liveAvailable?"Local persistent room store with private invitation links":"Run the TablePeace Node server"],["AI requirement suggestions","AI provider connection on a secure server"]].forEach((pair,index)=>{
     const row=document.createElement("div");row.className="integration-row";
     const copy=document.createElement("span"),title=document.createElement("b"),desc=document.createElement("small"),status=document.createElement("i");
-    title.textContent=pair[0];desc.textContent=pair[1];status.textContent="Not configured";copy.append(title,desc);row.append(copy,status);integrations.append(row);
+    title.textContent=pair[0];desc.textContent=pair[1];status.textContent=index===0&&liveAvailable?"Ready":"Not configured";copy.append(title,desc);row.append(copy,status);integrations.append(row);
   });
-  const note=document.createElement("div");note.className="setup-callout";note.textContent="Nothing has been saved or sent. No API keys are requested here; credentials belong in secure server settings.";
+  const note=document.createElement("div");note.className="setup-callout";note.textContent=liveAvailable?"Room responses are stored by this server. Anyone with a private invite link can access that participant slot.":"Nothing has been saved or sent. No API keys are requested here; credentials belong in secure server settings.";
   const done=document.createElement("button");done.className="button button-primary full-button";done.textContent="Got it";done.onclick=closeModal;
   box.append(x,eyebrow,h,p,integrations,note,done);backdrop.append(box);$("#modal-root").append(backdrop);done.focus();
 }
@@ -193,12 +194,15 @@ function renderLabResults() {
     originals.append(button);
   });
   const suggestions=$("#lab-alternatives");suggestions.replaceChildren();
+  const feasible=[...plans.map(plan=>stats[plan.id]),...alternatives.map(item=>item.result)].some(result=>result.groupStatus==="compatible");
+  $("#lab-feasibility").textContent=feasible?"A plan fits every submitted requirement in this example. Venue and approval still need checking.":"No feasible plan found in this window. These are the least conflicting candidates; change a time, venue, or requirement.";
+  $("#lab-feasibility").classList.toggle("no-fit",!feasible);
   alternatives.forEach(({option,result},index)=>{
     const button=document.createElement("button");button.dataset.labAlternative=index;
     button.innerHTML='<span></span><strong></strong><small></small>';
     $("span",button).textContent=option.venueLabel+" · "+formatTime(option.startUtc);
     $("strong",button).textContent=result.compatibleMemberCount+"/"+fixture.expectedCount+" fit";
-    $("small",button).textContent=result.blockedMemberCount+" conflict"+(result.blockedMemberCount===1?"":"s")+" · "+money(option.costMinor);
+    $("small",button).textContent=result.blockedMemberCount+" conflict"+(result.blockedMemberCount===1?"":"s")+" · "+money(option.costMinor)+(result.groupStatus==="compatible"?" · feasible":" · least conflicting, not feasible");
     suggestions.append(button);
   });
   if(!alternatives.length)suggestions.textContent="No new combination within this time window.";
@@ -306,7 +310,7 @@ document.addEventListener("click",event=>{
     if(navigator.clipboard)navigator.clipboard.writeText(summary).then(()=>toast("Illustrative summary copied.")).catch(()=>toast(summary));else toast(summary);
   }
 });
-$("#create-form").addEventListener("submit",event=>{
+$("#create-form").addEventListener("submit",async event=>{
   event.preventDefault();const errors=[];
   if(!$("#room-title").value.trim())errors.push("Add a room name.");
   $$(".option-entry").forEach((entry,index)=>{
@@ -316,7 +320,28 @@ $("#create-form").addEventListener("submit",event=>{
     const price=entry.querySelector('input[type="number"]');if(price?.value&&Number(price.value)<0)errors.push("Cost must be zero or more.");
   });
   const out=$("#form-errors");out.replaceChildren();errors.forEach(error=>{const p=document.createElement("p");p.textContent=error;out.append(p);});
-  if(errors.length){out.scrollIntoView({behavior:"smooth",block:"center"});return;}showSetup();
+  if(errors.length){out.scrollIntoView({behavior:"smooth",block:"center"});return;}
+  const options=$$(".option-entry").map(entry=>{
+    const start=entry.querySelector('input[type="datetime-local"]').value;
+    return {
+      venueLabel:entry.querySelector('.venue-input').value.trim(),
+      costMinor:Math.round(Number(entry.querySelector('input[type="number"]').value||0)*100),
+      startUtc:new Date(start+":00+08:00").toISOString(),
+      endUtc:new Date(Date.parse(start+":00+08:00")+3600000).toISOString(),
+      noise:entry.querySelector("select").value.toLowerCase()
+    };
+  });
+  try {
+    const health=await fetch("./api/health");
+    if(!health.ok || !health.headers.get("content-type")?.includes("application/json")){showSetup();return;}
+    const response=await fetch("./api/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("#room-title").value.trim(),expectedCount:Number($("#create-form .field-pair select").value),options})});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||"Room creation failed.");
+    location.href=result.hostUrl;
+  } catch(error) {
+    const p=document.createElement("p");p.textContent=error.message;out.append(p);
+    out.scrollIntoView({behavior:"smooth",block:"center"});
+  }
 });
 document.addEventListener("keydown",event=>{if(event.key==="Escape")closeModal();});
 $("#venue-select").addEventListener("change",resetCandidate);
@@ -324,3 +349,4 @@ $("#time-select").addEventListener("change",resetCandidate);
 $("#lab-members").addEventListener("change",updateLab);
 window.addEventListener("popstate",()=>renderPage(location.hash.slice(1)||(location.pathname==="/new"?"new":"results")));
 renderLabMembers();renderLabResults();renderRecommendation();resetCandidate();updateMatrix();setPage(["overview","needs","results","explore","decision","lab","protocol","new"].includes(page)?page:"results");
+fetch("./api/health").then(response=>{liveAvailable=response.ok&&response.headers.get("content-type")?.includes("application/json");if(liveAvailable){$(".create-intro").textContent="Live room · responses save on this server and invitation links open separate participant slots.";$("#create-form button[type='submit']").textContent="Create live room →";$("#create-form>small").textContent="Private responses are stored on this server.";}}).catch(()=>{});

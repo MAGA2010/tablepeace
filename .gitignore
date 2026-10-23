@@ -9,3 +9,4 @@ qa/*.png
 *.tar.gz
 *.tar
 .hackathon/
+.data/

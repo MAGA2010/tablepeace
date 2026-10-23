@@ -380,6 +380,7 @@ tbody th small{font-size:9px}
 #lab-plan-list strong,#lab-alternatives strong{grid-row:1/3;grid-column:2;font-size:14px;color:#285b42}
 #lab-plan-list small,#lab-alternatives small{font-size:9px;color:#819081}
 #lab-alternatives:empty:after{content:"No new combination within this time window.";font-size:11px;color:#819081}
+.lab-feasibility{padding:10px 12px;margin:9px 0;border-radius:8px;background:#e8f2e7;color:#2b6043;font-size:11px;line-height:1.5}.lab-feasibility.no-fit{background:#fff0e5;color:#8c4b2e}
 @media(max-width:1050px){.lab-layout{grid-template-columns:1fr}.lab-output-panel{grid-template-columns:repeat(2,1fr)}.lab-score{grid-row:1/3}}
 @media(max-width:760px){.lab-member-fields{grid-template-columns:repeat(2,1fr)}.lab-output-panel{grid-template-columns:1fr}.lab-score{grid-row:auto}.lab-notice{display:grid;gap:5px}.nav-link{position:relative}}
 @media(max-width:430px){.lab-input-panel,.lab-results,.lab-score{padding:17px}.lab-panel-heading{display:block}.lab-panel-heading>span{display:block;text-align:left;margin-top:7px}.lab-member{padding:12px}}

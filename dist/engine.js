@@ -1,17 +1,17 @@
 // Deterministic semantics reconstructed from the supplied v2.1 document.
 // The executable companion ZIP was not supplied. This is an illustrative fixture.
 export const fixture = {
-  title: 'Friday Project Meetup', timezone: 'Asia/Shanghai', currency: 'CNY', date: '2026-10-22', expectedCount: 4,
+  title: 'Friday Project Meetup', timezone: 'Asia/Shanghai', currency: 'CNY', date: '2026-10-23', expectedCount: 4,
   options: [
-    { id: 'A', title: 'Coffee Hub', venueLabel: 'Coffee Hub', startUtc: '2026-10-22T08:00:00Z', endUtc: '2026-10-22T09:00:00Z', costMinor: 3500, noise: 'moderate', icon: 'coffee', revision: 1, verified: false },
-    { id: 'B', title: 'School Library', venueLabel: 'School Library', startUtc: '2026-10-22T08:00:00Z', endUtc: '2026-10-22T09:00:00Z', costMinor: 0, noise: 'quiet', icon: 'library', revision: 1, verified: false },
-    { id: 'C', title: 'Makerspace', venueLabel: 'Makerspace', startUtc: '2026-10-22T10:00:00Z', endUtc: '2026-10-22T11:00:00Z', costMinor: 6000, noise: 'lively', icon: 'tools', revision: 1, verified: false }
+    { id: 'A', title: 'Coffee Hub', venueLabel: 'Coffee Hub', startUtc: '2026-10-23T08:00:00Z', endUtc: '2026-10-23T09:00:00Z', costMinor: 3500, noise: 'moderate', icon: 'coffee', revision: 1, verified: false },
+    { id: 'B', title: 'School Library', venueLabel: 'School Library', startUtc: '2026-10-23T08:00:00Z', endUtc: '2026-10-23T09:00:00Z', costMinor: 0, noise: 'quiet', icon: 'library', revision: 1, verified: false },
+    { id: 'C', title: 'Makerspace', venueLabel: 'Makerspace', startUtc: '2026-10-23T10:00:00Z', endUtc: '2026-10-23T11:00:00Z', costMinor: 6000, noise: 'lively', icon: 'tools', revision: 1, verified: false }
   ],
   members: [
-    { submitted: true, availability: [{ startUtc: '2026-10-22T10:00:00Z', endUtc: '2026-10-22T12:00:00Z' }], maxBudgetMinor: 10000, needsQuiet: false, favoriteOptionId: 'B' },
-    { submitted: true, availability: [{ startUtc: '2026-10-22T08:00:00Z', endUtc: '2026-10-22T12:00:00Z' }], maxBudgetMinor: 2000, needsQuiet: false, favoriteOptionId: 'B' },
-    { submitted: true, availability: [{ startUtc: '2026-10-22T08:00:00Z', endUtc: '2026-10-22T12:00:00Z' }], maxBudgetMinor: 10000, needsQuiet: true, favoriteOptionId: 'A' },
-    { submitted: true, availability: [{ startUtc: '2026-10-22T08:00:00Z', endUtc: '2026-10-22T12:00:00Z' }], maxBudgetMinor: 10000, needsQuiet: false, favoriteOptionId: 'C' }
+    { submitted: true, availability: [{ startUtc: '2026-10-23T10:00:00Z', endUtc: '2026-10-23T12:00:00Z' }], maxBudgetMinor: 10000, needsQuiet: false, favoriteOptionId: 'B' },
+    { submitted: true, availability: [{ startUtc: '2026-10-23T08:00:00Z', endUtc: '2026-10-23T12:00:00Z' }], maxBudgetMinor: 2000, needsQuiet: false, favoriteOptionId: 'B' },
+    { submitted: true, availability: [{ startUtc: '2026-10-23T08:00:00Z', endUtc: '2026-10-23T12:00:00Z' }], maxBudgetMinor: 10000, needsQuiet: true, favoriteOptionId: 'A' },
+    { submitted: true, availability: [{ startUtc: '2026-10-23T08:00:00Z', endUtc: '2026-10-23T12:00:00Z' }], maxBudgetMinor: 10000, needsQuiet: false, favoriteOptionId: 'C' }
   ]
 };
 const time = v => Date.parse(v);

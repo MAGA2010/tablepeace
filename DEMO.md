@@ -1,6 +1,8 @@
 # Five-minute walkthrough
 
-**Opening (30 sec):** “Student project organizers juggle schedules, budgets, and room needs. When plans clash, TablePeace compares hard requirements privately and lets the group test what could change. This walkthrough uses fictional inputs and has not yet been validated with organizers.”
+**Opening (30 sec):** “Student project organizers juggle schedules, budgets, and room needs. TablePeace lets a group submit requirements privately, compare plans, and confirm one together. This prototype has not yet been validated with organizers.”
+
+**Live room (2 min):** Run `npm run dev` and open Create a room. Add two venues and 3 participants. Copy each distinct invite link into a separate browser profile or private window. Submit one response per slot. Watch the organizer view change from waiting to aggregate counts. Propose a compatible combination. Accept it from every participant link; show the confirmed state. Edit one response and show that all prior approvals clear.
 
 **Compare (90 sec):** Open Group compatibility. Point out the three venue options and the aggregate checks. Coffee Hub has one time, one budget, and one environment conflict. The free School Library has one time conflict. Makerspace has two conflicts. Individual schedules and budgets remain hidden.
 
@@ -8,8 +10,8 @@
 
 **Peace Protocol (60 sec):** Open Peace Protocol and press Initiate protocol. Show the local scan of 21 candidate paths across 1,024 modeled timelines. For the unchanged fixture, School Library at 18:30 survives every modeled case; School Library at 18:00 survives fewer. Explain the exact assumptions on screen. This is a deterministic demonstration, not a real-world probability or approval.
 
-**Trust (60 sec):** Open Final decision. Show 0/4 confirmations, then Setup status. Explain the honest states for database and AI. Show the personal needs preview and the manual-entry fallback.
+**Trust (60 sec):** The fictional Final decision shows 0/4 approvals because it is separate from the live room. Show that the server stores live responses locally and AI suggestions are unconfigured. Venue hours and bookings are still unverified.
 
-**Close (30 sec):** “TablePeace helps a group find a workable option before asking everyone to commit. A live pilot next needs a connected private room and genuine user feedback.”
+**Close (30 sec):** “TablePeace finds a workable option and asks every participant to confirm the same revision. A public pilot needs server hosting, HTTPS, and genuine user feedback.”
 
 All sample people and responses are fictional. Do not describe the demo as tested with participants.

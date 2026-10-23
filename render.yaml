@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: tablepeace-live-demo
+    runtime: node
+    plan: starter
+    buildCommand: npm run lint && npm test && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.21.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: TABLEPEACE_DATA_FILE
+        value: /var/data/rooms.json
+      - key: AI_LIMITER_DATA_FILE
+        value: /var/data/ai-usage.json
+      - key: ROOM_RETENTION_DAYS
+        value: 7
+      - key: AI_BASE_URL
+        value: https://api.minimax.cn/v1
+      - key: AI_MODEL
+        value: MiniMax-M2.5
+      - key: AI_LIMIT_CALLS_PER_MINUTE
+        value: 6
+      - key: AI_LIMIT_CALLS_PER_DAY
+        value: 40
+      - key: AI_LIMIT_CALLS_PER_ROOM_DAY
+        value: 12
+      - key: AI_LIMIT_CALLS_PER_LINK_DAY
+        value: 3
+      - key: AI_LIMIT_LINK_COOLDOWN_SECONDS
+        value: 5
+      - key: AI_API_KEY
+        sync: false
+    disk:
+      name: tablepeace-data
+      mountPath: /var/data
+      sizeGB: 1

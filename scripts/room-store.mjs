@@ -18,9 +18,15 @@ const requirementCategories = new Set(['time', 'budget', 'accessibility', 'locat
 const reviewedFields = new Set(['maximumBudget', 'preferredBudget', 'availableAfter', 'needsQuiet', 'preferredNoise', 'unresolvedHard']);
 
 export class RoomStore {
-  constructor(filename) { this.filename = filename; this.rooms = {}; this.queue = Promise.resolve(); }
+  constructor(filename, { retentionMs = 7 * 24 * 60 * 60 * 1000 } = {}) { this.filename = filename; this.retentionMs = retentionMs; this.rooms = {}; this.queue = Promise.resolve(); }
   async load() {
-    try { this.rooms = JSON.parse(await readFile(this.filename, 'utf8')); }
+    try {
+      this.rooms = JSON.parse(await readFile(this.filename, 'utf8'));
+      if (!this.rooms || typeof this.rooms !== 'object' || Array.isArray(this.rooms)) throw new Error('Invalid room data.');
+      const previousCount = Object.keys(this.rooms).length;
+      this.removeExpired(Date.now());
+      if (Object.keys(this.rooms).length !== previousCount) await this.save();
+    }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
   async save() {
@@ -34,6 +40,23 @@ export class RoomStore {
       const value = action();
       await this.save();
       return value;
+    });
+    this.queue = result.catch(() => {});
+    return result;
+  }
+  removeExpired(now) {
+    let removed = 0;
+    for (const [id, room] of Object.entries(this.rooms)) {
+      const expiresAt = Date.parse(room?.expiresAt || '') || Date.parse(room?.createdAt || '') + this.retentionMs;
+      if (!Number.isFinite(expiresAt) || now >= expiresAt) { delete this.rooms[id]; removed++; }
+    }
+    return removed;
+  }
+  pruneExpired(now = Date.now()) {
+    const result = this.queue.then(async () => {
+      const removed = this.removeExpired(now);
+      if (removed) await this.save();
+      return removed;
     });
     this.queue = result.catch(() => {});
     return result;
@@ -59,10 +82,12 @@ export class RoomStore {
       });
       const id = randomBytes(12).toString('base64url');
       const hostToken = token(), secret = token();
+      const createdAt = new Date().toISOString();
       this.rooms[id] = {
         id, title, expectedCount, timeZone, options, hostHash: digest(hostToken).toString('hex'), secret,
         participants: Array.from({ length: expectedCount }, (_, index) => ({ id: index + 1, response: null, accepted: null })),
-        proposal: { option: options[0], revision: 1 }, createdAt: new Date().toISOString()
+        proposal: { option: options[0], revision: 1 }, createdAt,
+        expiresAt: new Date(Date.parse(createdAt) + this.retentionMs).toISOString()
       };
       return { id, hostUrl: `${origin}/live.html#host=${id}.${hostToken}`, invites: this.invites(this.rooms[id], origin) };
     });
@@ -73,7 +98,13 @@ export class RoomStore {
       url: `${origin}/live.html#join=${room.id}.${createHmac('sha256', room.secret).update(String(participant.id)).digest('base64url')}`
     }));
   }
-  get(id) { const room = this.rooms[id]; if (!room) throw new Error('Room not found.'); return room; }
+  get(id) {
+    const room = this.rooms[id];
+    if (!room) throw new Error('Room not found.');
+    const expiresAt = Date.parse(room.expiresAt || '') || Date.parse(room.createdAt || '') + this.retentionMs;
+    if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) throw new Error('Room expired.');
+    return room;
+  }
   authenticate(room, bearer) {
     if (equal(room.hostHash, bearer)) return { role: 'host' };
     for (const participant of room.participants) {
@@ -84,7 +115,7 @@ export class RoomStore {
     throw new Error('Invalid room link.');
   }
   snapshot(room, auth, origin) {
-    const base = { id: room.id, title: room.title, expectedCount: room.expectedCount, timeZone: room.timeZone || 'Asia/Shanghai', options: room.options, proposal: room.proposal, role: auth.role };
+    const base = { id: room.id, title: room.title, expectedCount: room.expectedCount, timeZone: room.timeZone || 'Asia/Shanghai', options: room.options, proposal: room.proposal, role: auth.role, expiresAt: room.expiresAt };
     const submitted = room.participants.filter(p => p.response).length;
     const approvals = room.participants.filter(p => p.accepted === true).length;
     const rejections = room.participants.filter(p => p.accepted === false).length;

@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { AiRateLimitError, AiRequestLimiter, createAiRequestLimiter } from '../scripts/ai-limiter.mjs';
 
 test('AI limiter enforces per-link cooldown, link/day, room/day, and server/minute caps', () => {
@@ -34,4 +37,19 @@ test('limiter environment settings accept only bounded positive integers', () =>
   assert.equal(limiter.limits.roomPerDay, 12);
   assert.equal(limiter.limits.callerPerDay, 3);
   assert.equal(limiter.limits.callerCooldownMs, 2000);
+});
+
+test('AI usage limits survive a service restart when a durable data file is configured', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'tablepeace-ai-limits-'));
+  try {
+    const filename = path.join(directory, 'usage.json');
+    let now = 1_000_000;
+    const options = { clock: () => now, filename, callerPerDay: 1, callerCooldownMs: 5000 };
+    new AiRequestLimiter(options).consume('room-a', 'participant-1');
+    now += 5000;
+    const restarted = new AiRequestLimiter(options);
+    assert.throws(() => restarted.consume('room-a', 'participant-1'), error => error instanceof AiRateLimitError);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

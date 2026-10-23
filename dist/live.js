@@ -32,6 +32,17 @@ function button(text, action, className) {
 function preferenceLabel(result) {
   return result.preferenceFitPercent == null ? 'No soft preferences shared' : `Soft preferences fit ${result.preferenceFitPercent}% across ${result.preferenceMemberCount} participant(s)`;
 }
+function nextStepFor(result) {
+  const guidance = [];
+  if (result.timeConflictCount) guidance.push(`${result.timeConflictCount} availability conflict(s): offer a later start that fits the group.`);
+  if (result.budgetConflictCount) guidance.push(`${result.budgetConflictCount} budget conflict(s): try a lower-cost option or ask privately whether the limit can change.`);
+  if (result.environmentConflictCount) guidance.push(`${result.environmentConflictCount} quiet-space conflict(s): include a quiet venue and verify its setting.`);
+  if (result.timeUnknownCount) guidance.push(`${result.timeUnknownCount} participant(s) have not supplied complete availability; ask them to finish their own form.`);
+  if (result.budgetUnknownCount) guidance.push(`${result.budgetUnknownCount} budget(s) are unknown for this paid option; ask those participants to complete their own form.`);
+  if (result.environmentUnknownCount) guidance.push(`${result.environmentUnknownCount} quiet requirement or venue setting needs checking.`);
+  if (result.unresolvedHardRequirementCount) guidance.push(`${result.unresolvedHardRequirementCount} hard requirement(s) cannot be verified; ask privately what evidence or venue change would resolve them.`);
+  return guidance.length ? guidance.join(' ') : 'No known requirement blocks this option. Venue details still need verification.';
+}
 function ownPreferenceSummary(option, response) {
   const checks = [];
   if (response.favoriteOptionId) checks.push(`favorite plan ${response.favoriteOptionId === option.id ? 'matches' : 'does not match'}`);
@@ -74,6 +85,7 @@ function renderHost(data) {
       const hard = `Hard conflicts: ${result.timeConflictCount} time · ${result.budgetConflictCount} budget · ${result.environmentConflictCount} setting`;
       const unknown = `Needs info: ${result.timeUnknownCount} time · ${result.budgetUnknownCount} budget · ${result.environmentUnknownCount} setting · ${result.unresolvedHardRequirementCount} unresolved hard`;
       row.append(node('span', `${result.compatibleMemberCount}/${data.expectedCount} fit · ${hard} · ${unknown} · ${preferenceLabel(result)}`));
+      row.append(node('span', nextStepFor(result), 'result-guidance'));
       results.append(row);
     });
   }

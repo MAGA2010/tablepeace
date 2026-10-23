@@ -4,14 +4,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RoomStore } from './room-store.mjs';
 import { AiUnavailableError, aiIsConfigured, interpretRequirements, selectAlternativeSuggestions } from './ai-service.mjs';
-import { AiRateLimitError, createAiRequestLimiter } from './ai-limiter.mjs';
+import { AiLimiterStorageError, AiRateLimitError, createAiRequestLimiter } from './ai-limiter.mjs';
 import { aggregate, searchAlternatives } from '../dist/engine.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 const dataFile = process.env.TABLEPEACE_DATA_FILE || path.resolve(root, '../.data/rooms.json');
-const store = new RoomStore(dataFile);
+const retentionDays = Number.isInteger(Number(process.env.ROOM_RETENTION_DAYS)) && Number(process.env.ROOM_RETENTION_DAYS) >= 1 && Number(process.env.ROOM_RETENTION_DAYS) <= 90 ? Number(process.env.ROOM_RETENTION_DAYS) : 7;
+const store = new RoomStore(dataFile, { retentionMs: retentionDays * 24 * 60 * 60 * 1000 });
 await store.load();
-const aiLimiter = createAiRequestLimiter(process.env);
+const aiLimiter = createAiRequestLimiter(process.env, Date.now, process.env.AI_LIMITER_DATA_FILE || path.join(path.dirname(dataFile), 'ai-usage.json'));
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
 const send = (res, status, value, headers = {}) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers });
@@ -82,6 +83,7 @@ async function api(req, res, url) {
 }
 const server = http.createServer(async (req, res) => {
   try {
+    await store.pruneExpired();
     const url = new URL(req.url, 'http://localhost');
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     const pathname = decodeURIComponent(url.pathname);
@@ -92,11 +94,13 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': types[path.extname(filename)] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(file);
   } catch (error) {
-    if (req.url?.startsWith('/api/')) return send(res, error instanceof AiUnavailableError ? 503 : error.message === 'Room not found.' ? 404 : error.message === 'Invalid room link.' ? 401 : 400, { error: error.message });
+    if (req.url?.startsWith('/api/')) return send(res, error instanceof AiUnavailableError || error instanceof AiLimiterStorageError ? 503 : error.message === 'Room not found.' || error.message === 'Room expired.' ? 404 : error.message === 'Invalid room link.' ? 401 : 400, { error: error.message });
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not found');
   }
 });
 const port = Number(process.env.PORT || 4178);
 const host = process.env.HOST || '127.0.0.1';
+const cleanup = setInterval(() => { store.pruneExpired().catch(() => {}); }, 10 * 60 * 1000);
+cleanup.unref();
 server.listen(port, host, () => process.stdout.write(`TablePeace demo: http://${host}:${server.address().port}\n`));
